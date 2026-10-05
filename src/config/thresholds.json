@@ -10,5 +10,6 @@
   "overbidRate": 0.08,
   "minSampleBoards": 20,
   "reviewWorst": 5,
-  "reviewBest": 3
+  "reviewBest": 3,
+  "tiePolicy": "separate"
 }

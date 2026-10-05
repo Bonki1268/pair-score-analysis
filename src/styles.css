@@ -10,6 +10,7 @@
   --neg: #b3362c;
   --bar-pos: #3f9b6c;
   --bar-neg: #d0665b;
+  --bar-neutral: #8a94a6;
   --suit-red: #c62828;
   --suit-black: #1d1d1b;
   --mine: #fff6d6;
@@ -30,6 +31,7 @@
     --neg: #f08a7e;
     --bar-pos: #4fa877;
     --bar-neg: #d9786d;
+    --bar-neutral: #7d8799;
     --suit-red: #ff7a70;
     --suit-black: #ecebe6;
     --mine: #3a3420;
@@ -212,6 +214,9 @@ input.search:focus, textarea:focus, select:focus { outline: 2px solid var(--acce
 .chart .bar-pos { fill: var(--bar-pos); }
 .chart .bar-neg { fill: var(--bar-neg); }
 .chart .bar-zero { fill: var(--muted); }
+.chart .bar-neutral { fill: var(--bar-neutral); }
+.table tr.neutral td { color: var(--muted); }
+.tag-neutral { background: var(--bar-neutral); }
 
 .scroll { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 8px 0; }

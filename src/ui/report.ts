@@ -1,11 +1,11 @@
 import type { Seat } from '../model/types';
 import type { PlayerEntry } from '../index/players';
-import { CATEGORIES, categoryLabel, formatMainstream } from '../engine/classify';
+import { CATEGORIES, categoryLabel, EXTRA_CATEGORIES, formatMainstream, formatTied } from '../engine/classify';
 import type { Dataset, PlayerReport, ReviewItem } from '../engine/report';
 import thresholds from '../config/thresholds.json';
 import { divergingBars } from './charts';
 import { dealDiagram } from './deal-diagram';
-import { contractHtml, esc, h, signClass, signed } from './format';
+import { contractHtml, esc, h, signClass, signed, suitHtml } from './format';
 import { reportHref } from './search';
 
 export interface ReportParams {
@@ -91,7 +91,9 @@ function summary(rep: PlayerReport): string {
 }
 
 function categories(rep: PlayerReport): string {
-  const bars = rep.categories.map((c) => ({ label: c.label, value: c.imp, note: `${c.boards} 副` }));
+  const isTech = (id: string) => CATEGORIES.some((x) => x.id === id);
+  const bars = rep.categories.map((c) => ({ label: c.label, value: c.imp, note: `${c.boards} 副`, neutral: !isTech(c.id) }));
+  const hasNoConsensus = rep.categories.some((c) => c.id === 'no-consensus');
   return `<section class="card">
     <h2>輸贏分類</h2>
     <p class="muted small">每副牌和全場「主流合約」比較後歸入一類，再把該牌的 Butler 計入。</p>
@@ -101,10 +103,14 @@ function categories(rep: PlayerReport): string {
       <tbody>${rep.categories
         .map((c) => {
           const meta = CATEGORIES.find((x) => x.id === c.id);
-          return `<tr><td title="${esc(meta?.hint ?? '裁判判給的調整分')}">${esc(c.label)}</td><td>${esc(meta?.facet ?? '—')}</td><td class="num">${c.boards}</td><td class="num ${signClass(c.imp)}">${signed(c.imp)}</td><td class="num ${signClass(c.perBoard)}">${c.boards ? signed(c.perBoard, 2) : '—'}</td></tr>`;
+          const hint = meta?.hint ?? EXTRA_CATEGORIES.find((x) => x.id === c.id)?.hint ?? '';
+          // 非技術類別用中性色，不以紅綠表示好壞
+          const cls = (x: number) => (meta ? signClass(x) : '');
+          return `<tr class="${meta ? '' : 'neutral'}"><td title="${esc(hint)}">${esc(c.label)}${c.id === 'no-consensus' ? ' *' : ''}</td><td>${esc(meta?.facet ?? '—')}</td><td class="num">${c.boards}</td><td class="num ${cls(c.imp)}">${signed(c.imp)}</td><td class="num ${cls(c.perBoard)}">${c.boards ? signed(c.perBoard, 2) : '—'}</td></tr>`;
         })
         .join('')}</tbody>
     </table>
+    ${hasNoConsensus ? '<p class="muted small">* 全場無共識：主流合約平手的牌，全場對打法沒有共識，不計入技術類別。</p>' : ''}
     <p class="muted small">做莊與防守兩類的 Butler 會被全場叫牌拉動（例如對手叫到全場多數沒叫的成局，防守方就是負分），請以下方的墩差判斷做莊與防守。</p>
   </section>`;
 }
@@ -189,11 +195,15 @@ function reviewRow(ds: Dataset, r: ReviewItem): string {
     <summary>
       <span class="review-board">${esc(eventShort)} R${res.round} 第 ${res.board} 副</span>
       <span class="review-contract">${contractHtml(res.contract)}</span>
-      <span class="review-cat">${esc(categoryLabel(r.item.category))}${r.item.overbid ? ' · 叫過頭' : ''}</span>
+      <span class="review-cat">${r.item.category === 'no-consensus' ? '<span class="tag tag-neutral">無共識</span> ' : ''}${esc(categoryLabel(r.item.category))}${r.item.overbid ? ' · 叫過頭' : ''}</span>
       <span class="review-imp ${signClass(pb.butler)}">${signed(pb.butler)}</span>
     </summary>
     <div class="review-body">
-      <p class="small">你坐${pb.side === 'NS' ? '南北' : '東西'}（${where}搭檔 ${esc(pb.partner)}），得分 ${signed(pb.score)}，Datum ${signed(myScore(res.datum))}。主流合約：${esc(formatMainstream(r.item.mainstream))}。</p>
+      <p class="small">你坐${pb.side === 'NS' ? '南北' : '東西'}（${where}搭檔 ${esc(pb.partner)}），得分 ${signed(pb.score)}，Datum ${signed(myScore(res.datum))}。${
+        r.item.tied.length
+          ? `主流合約平手：${suitHtml(formatTied(r.item.tied))}，全場對打法沒有共識，不計入技術類別。`
+          : `主流合約：${suitHtml(formatMainstream(r.item.mainstream))}。`
+      }</p>
       ${r.deal ? dealDiagram(r.deal, mySeats) : '<p class="muted small">這份成績表沒有牌型。</p>'}
       <h4>全場結果（${r.field.length} 桌，以你的方向計分）</h4>
       <table class="table field">
@@ -213,7 +223,8 @@ function method(): string {
       <summary><h2 class="inline">方法說明</h2></summary>
       <div class="method small">
         <p><strong>Butler</strong>：每副牌的全場平均分（Datum）由成績表提供；你的得分與 Datum 的差距換成 IMP。</p>
-        <p><strong>主流合約</strong>：同一副牌最多桌次打的「主打方 + 階數 + 花色」。</p>
+        <p><strong>主流合約</strong>：同一副牌最多桌次打的「主打方 + 階數 + 花色」；四家 Pass 也算一種合約。</p>
+        <p><strong>平手</strong>：最多桌次的合約有兩個以上時，代表全場沒有共識。若選不同的候選會讓這副牌歸入不同類別，就歸入「全場無共識」，不計入任何技術類別；每個候選都得到同一類別時照常歸類。自己和主流都是 Pass 的牌歸入「Pass 局」。</p>
         <p><strong>輸贏分類</strong>，依序判斷：</p>
         <ol>
           <li>主打方和主流不同（含一邊 Pass）→ 競叫</li>
@@ -221,7 +232,7 @@ function method(): string {
           <li>部分合約／成局／小滿貫／大滿貫層級不同 → 成局／滿貫判斷</li>
           <li>王牌花色或無王不同 → 選擇王牌；否則 → 叫牌高度</li>
         </ol>
-        <p>主打宕 ${thresholds.overbidDownTricks} 墩以上另外標記「叫過頭」，可以和其他類別同時成立。調整分不列入任何一類。</p>
+        <p>主打宕 ${thresholds.overbidDownTricks} 墩以上另外標記「叫過頭」，可以和其他類別同時成立。調整分、Pass 局與全場無共識不計入技術類別，也不用來判斷強弱項。</p>
         <p><strong>墩差</strong>：和同一副牌、同一方主打、同階、同花色的其他桌次比墩數，排除叫牌的影響。</p>
         <p><strong>結論規則</strong>：叫牌類別每牌 ≤ ${thresholds.weakCategoryImpPerBoard} IMP 且至少 ${thresholds.categoryMinBoards} 副為弱項、≥ +${thresholds.strongCategoryImpPerBoard} 為強項；墩差 ≤ ${thresholds.trickDiffWeak} 且至少 ${thresholds.trickDiffMinBoards} 副為偏弱；宕 ${thresholds.overbidDownTricks} 墩以上達 ${thresholds.overbidRate * 100}% 為常叫過頭；總牌數少於 ${thresholds.minSampleBoards} 副時所有結論僅供參考。</p>
         <p><strong>限制</strong>：成績表沒有叫牌過程與首攻，無法判斷失分「為什麼」發生；墩差不區分首攻方向；對手強弱未調整。</p>

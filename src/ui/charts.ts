@@ -4,6 +4,8 @@ export interface Bar {
   label: string;
   value: number;
   note?: string;
+  /** 中性色（不分正負），用於不屬於技術類別的列 */
+  neutral?: boolean;
 }
 
 /** 以 0 為中心的橫向長條圖（自繪 SVG） */
@@ -22,7 +24,7 @@ export function divergingBars(bars: Bar[], opts: { unit?: string } = {}): string
       const y = 4 + i * rowH;
       const w = Math.abs(b.value) * scale;
       const x = b.value >= 0 ? mid : mid - w;
-      const cls = b.value > 0 ? 'bar-pos' : b.value < 0 ? 'bar-neg' : 'bar-zero';
+      const cls = b.neutral ? 'bar-neutral' : b.value > 0 ? 'bar-pos' : b.value < 0 ? 'bar-neg' : 'bar-zero';
       return `
         <g>
           <title>${esc(b.label)}：${signed(b.value)}${opts.unit ?? ''}${b.note ? `（${esc(b.note)}）` : ''}</title>

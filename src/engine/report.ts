@@ -1,7 +1,7 @@
 import type { BoardResult, Deal, Event, ParsedEvent, Side } from '../model/types';
 import thresholds from '../config/thresholds.json';
 import { boardKey, groupByBoard } from './butler';
-import { categoryStats, classifyAll, type CategoryStat, type Classified } from './classify';
+import { categoryStats, classifyAll, DEFAULT_TIE_POLICY, type CategoryStat, type Classified, type TiePolicy } from './classify';
 import { generateInsights, type Insight } from './insights';
 import { mean, playerBoards, sum, type PlayerBoard, type PlayerFilter } from './player-boards';
 import { trickStats, type TrickStat } from './trick-diff';
@@ -121,9 +121,9 @@ export function playerAverages(ds: Dataset, eventIds?: string[]): Map<string, { 
   return map;
 }
 
-export function buildReport(ds: Dataset, name: string, filter: PlayerFilter = {}): PlayerReport {
+export function buildReport(ds: Dataset, name: string, filter: PlayerFilter = {}, opts: { tiePolicy?: TiePolicy } = {}): PlayerReport {
   const boards = playerBoards(ds.results, name, filter);
-  const classified = classifyAll(boards, ds.byBoard);
+  const classified = classifyAll(boards, ds.byBoard, opts.tiePolicy ?? DEFAULT_TIE_POLICY);
   const tricks = trickStats(boards, ds.byBoard);
   const categories = categoryStats(classified);
   const butler = sum(boards.map((b) => b.butler));

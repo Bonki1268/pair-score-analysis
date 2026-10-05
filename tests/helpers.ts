@@ -26,6 +26,8 @@ export interface Golden {
     }
   >;
   merged?: { query: string; player: string; teams: string[]; boards: number; imp: number };
+  /** 主流合約平手規則的驗收測試對象（第 28 屆植鑑盃混合組） */
+  tiePolicy?: { file: string; player: string; partner: string };
 }
 
 const goldenPath = join(DATA_DIR, 'golden.json');

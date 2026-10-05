@@ -8,7 +8,7 @@ export const DATA_DIR = join(__dirname, '..', '資料');
 
 /** 資料/ 底下所有成績表（略過 Excel 開檔時產生的 ~$ 暫存檔） */
 export const dataFiles: string[] = existsSync(DATA_DIR)
-  ? readdirSync(DATA_DIR).filter((f) => f.toLowerCase().endsWith('.xlsx') && !f.startsWith('~$')).sort()
+  ? readdirSync(DATA_DIR).filter((f) => /\.xlsx?$/i.test(f) && !f.startsWith('~$')).sort()
   : [];
 
 export interface Golden {

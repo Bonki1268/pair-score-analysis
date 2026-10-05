@@ -20,7 +20,7 @@ export function parseWorkbook(data: ArrayBuffer | Uint8Array, fileName: string):
   try {
     wb = readWorkbook(data);
   } catch {
-    throw new ParseError(`「${fileName}」不是可讀取的 xlsx 檔案`);
+    throw new ParseError(`「${fileName}」不是可讀取的 Excel 檔案（xlsx 或 xls）`);
   }
   if (wb.SheetNames.length === 0) throw new ParseError(`「${fileName}」是空白檔案`);
   const format = detectFormat(wb);

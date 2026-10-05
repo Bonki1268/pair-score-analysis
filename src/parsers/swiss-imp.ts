@@ -29,7 +29,7 @@ export function parseSwissImp(wb: WorkBook, fileName: string): ParsedEvent {
     .sort((a, b) => a.round - b.round);
 
   const firstRound = sheet(roundSheets[0].name)!;
-  const title = findTitle(firstRound) ?? fileName.replace(/\.xlsx$/i, '');
+  const title = findTitle(firstRound) ?? fileName.replace(/\.xlsx?$/i, '');
   const eventId = title;
 
   const teams = parseTeams(sheet('Swiss R'), sheet('Players'), eventId, warnings);

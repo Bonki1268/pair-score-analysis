@@ -1,5 +1,20 @@
 import * as XLSX from 'xlsx';
 
+let codepages: Promise<void> | null = null;
+
+/**
+ * 舊版 .xls 可能以 Big5 等字碼頁存文字，需要字碼表才能正確讀出中文。
+ * 字碼表約 180 KB（gzip），只在讀 .xls 時才下載。
+ */
+export function loadCodepages(): Promise<void> {
+  return (codepages ??= import('xlsx/dist/cpexcel.full.mjs').then((cp) => XLSX.set_cptable(cp)));
+}
+
+/** xlsx 是 zip 檔（開頭為 PK）；不是的話視為舊版 xls */
+export function isZip(data: Uint8Array): boolean {
+  return data[0] === 0x50 && data[1] === 0x4b;
+}
+
 export type CellValue = string | number | null;
 
 /** 以 A1 為原點的二維陣列，避免工作表範圍不從 A1 開始時欄位錯位 */

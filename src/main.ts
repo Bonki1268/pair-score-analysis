@@ -4,6 +4,7 @@ import { deleteEvent, loadAliases, loadEvents, saveAliases, saveEvent } from './
 import { applyAliases, buildIndex, type AliasMap, type PlayerEntry } from './index/players';
 import { buildDataset, buildReport, type Dataset } from './engine/report';
 import { parseWorkbook, ParseError } from './parsers/detect';
+import { isZip, loadCodepages } from './parsers/grid';
 import { esc, h } from './ui/format';
 import { renderReport, type ReportParams } from './ui/report';
 import { renderSearch } from './ui/search';
@@ -35,7 +36,9 @@ async function addFiles(files: File[]) {
   render();
   for (const f of files) {
     try {
-      const parsed = parseWorkbook(new Uint8Array(await f.arrayBuffer()), f.name);
+      const data = new Uint8Array(await f.arrayBuffer());
+      if (!isZip(data)) await loadCodepages();
+      const parsed = parseWorkbook(data, f.name);
       state.events = state.events.filter((e) => e.event.eventId !== parsed.event.eventId).concat(parsed);
       await saveEvent(parsed);
     } catch (err) {

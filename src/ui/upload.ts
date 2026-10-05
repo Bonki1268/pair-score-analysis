@@ -12,8 +12,8 @@ export function renderUpload(events: ParsedEvent[], errors: string[], handlers: 
     <section class="card">
       <h2>1. 上傳成績表</h2>
       <label class="dropzone" tabindex="0">
-        <input type="file" accept=".xlsx" multiple hidden>
-        <strong>拖放 xlsx 成績表到這裡</strong>
+        <input type="file" accept=".xlsx,.xls" multiple hidden>
+        <strong>拖放成績表到這裡（xlsx 或 xls）</strong>
         <span>或點一下選擇檔案，可一次選多份</span>
       </label>
       <p class="muted small">檔案只在你的瀏覽器裡解析與計算，不會上傳到任何伺服器。</p>

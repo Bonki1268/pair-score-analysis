@@ -12,7 +12,7 @@
 | --- | --- |
 | `src/parsers/` | `detect.ts` 格式偵測、`swiss-imp.ts` 隊制賽（Swiss R / R1… / Hands / ButlerP）、`pairs-imp.ts` IMP 雙人賽（總成績 名次 / 個人成績T / 個人成績D / 牌局分析）、`hands.ts` 四家牌型、`contract.ts` 合約字串、`names.ts` 配對拆名 |
 | `src/model/` | `types.ts` 資料表型別、`store.ts` IndexedDB 暫存 |
-| `src/index/` | `players.ts` 賽員索引、模糊搜尋、別名 |
+| `src/index/` | `players.ts` 賽員索引、模糊搜尋 |
 | `src/engine/` | `validate.ts` 上傳後的自我核對、`butler.ts` IMP、Datum 與 Cross-IMP、`trick-diff.ts` 墩差、`classify.ts` 六類輸贏分類、`insights.ts` 結論規則、`report.ts` 組合個人報告 |
 | `src/ui/` | 上傳、搜尋、報告頁、SVG 長條圖、四家牌型圖 |
 | `src/config/thresholds.json` | 結論門檻 |

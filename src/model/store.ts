@@ -1,14 +1,12 @@
 import type { ParsedEvent } from './types';
-import type { AliasMap } from '../index/players';
 
 // 已匯入的賽事留在使用者本機的 IndexedDB；瀏覽器不支援或被封鎖時退回記憶體，只是重新整理後要重新上傳
 const DB_NAME = 'pair-score-analysis';
 const DB_VERSION = 1;
 const EVENTS = 'events';
-const SETTINGS = 'settings';
 
 let dbPromise: Promise<IDBDatabase | null> | null = null;
-const memory = { events: new Map<string, ParsedEvent>(), aliases: {} as AliasMap };
+const memory = { events: new Map<string, ParsedEvent>() };
 
 function open(): Promise<IDBDatabase | null> {
   if (dbPromise) return dbPromise;
@@ -18,7 +16,6 @@ function open(): Promise<IDBDatabase | null> {
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(EVENTS)) db.createObjectStore(EVENTS);
-        if (!db.objectStoreNames.contains(SETTINGS)) db.createObjectStore(SETTINGS);
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => resolve(null);
@@ -66,27 +63,6 @@ export async function deleteEvent(eventId: string): Promise<void> {
   if (!db) return;
   try {
     await tx(db, EVENTS, 'readwrite', (s) => s.delete(eventId));
-  } catch {
-    /* 退回記憶體 */
-  }
-}
-
-export async function loadAliases(): Promise<AliasMap> {
-  const db = await open();
-  if (!db) return memory.aliases;
-  try {
-    return ((await tx(db, SETTINGS, 'readonly', (s) => s.get('aliases'))) as AliasMap | undefined) ?? {};
-  } catch {
-    return memory.aliases;
-  }
-}
-
-export async function saveAliases(aliases: AliasMap): Promise<void> {
-  memory.aliases = aliases;
-  const db = await open();
-  if (!db) return;
-  try {
-    await tx(db, SETTINGS, 'readwrite', (s) => s.put(aliases, 'aliases'));
   } catch {
     /* 退回記憶體 */
   }

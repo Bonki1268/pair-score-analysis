@@ -18,22 +18,6 @@ export interface Candidate {
   score: number;
 }
 
-/** 別名表：鍵是別名，值是正式名字（簡繁體、異體字、不同賽事的寫法） */
-export type AliasMap = Record<string, string>;
-
-export function canonical(name: string, aliases: AliasMap): string {
-  let n = name;
-  for (let i = 0; i < 5 && aliases[n] && aliases[n] !== n; i++) n = aliases[n];
-  return n;
-}
-
-/** 套用別名表：把結果中的名字換成正式名字（產生新的陣列，不改原資料） */
-export function applyAliases(results: BoardResult[], aliases: AliasMap): BoardResult[] {
-  if (Object.keys(aliases).length === 0) return results;
-  const c = (n: string) => canonical(n, aliases);
-  return results.map((r) => ({ ...r, nsPair: [c(r.nsPair[0]), c(r.nsPair[1])], ewPair: [c(r.ewPair[0]), c(r.ewPair[1])] }));
-}
-
 /** 只從實際上場的配對名單建索引（不用「隊長」欄，避免代填人重複出現） */
 export function buildIndex(events: ParsedEvent[], results: BoardResult[]): Map<string, PlayerEntry[]> {
   const teamName = new Map<string, string>();

@@ -76,6 +76,11 @@ function summary(rep: PlayerReport): string {
       ${stat('每牌 IMP', signed(rep.perBoard, 2), signClass(rep.perBoard))}
       ${rank}
     </div>
+    ${
+      rep.sheetScore && rep.sheetScore.label !== 'Butler'
+        ? `<p class="muted small">成績表原本的 ${rep.sheetScore.label} 總分：<strong class="${signClass(rep.sheetScore.imp)}">${signed(rep.sheetScore.imp)}</strong>。為了和其他賽事比較，本頁一律以 Datum 計算 Butler。</p>`
+        : ''
+    }
     <p class="headline">${esc(rep.headline)}</p>
     ${
       rep.insights.length
@@ -167,7 +172,8 @@ function reviewRow(ds: Dataset, r: ReviewItem): string {
   const res = pb.result;
   const mySeats: Seat[] = pb.side === 'NS' ? ['N', 'S'] : ['E', 'W'];
   const eventShort = (ds.eventNames.get(res.eventId) ?? '').split(/\s+/).pop();
-  const roomLabel = res.room === 'open' ? '公開室' : '閉室';
+  const isTeams = ds.eventInfo.get(res.eventId)?.kind !== 'pairs';
+  const where = isTeams ? `${res.room === 'open' ? '公開室' : '閉室'}，` : '';
 
   // 全場分布：同合約同得分合併
   const groups = new Map<string, { html: string; score: number; n: number; mine: boolean }>();
@@ -187,7 +193,7 @@ function reviewRow(ds: Dataset, r: ReviewItem): string {
       <span class="review-imp ${signClass(pb.butler)}">${signed(pb.butler)}</span>
     </summary>
     <div class="review-body">
-      <p class="small">你坐${pb.side === 'NS' ? '南北' : '東西'}（${roomLabel}，搭檔 ${esc(pb.partner)}），得分 ${signed(pb.score)}，Datum ${signed(myScore(res.datum))}。主流合約：${esc(formatMainstream(r.item.mainstream))}。</p>
+      <p class="small">你坐${pb.side === 'NS' ? '南北' : '東西'}（${where}搭檔 ${esc(pb.partner)}），得分 ${signed(pb.score)}，Datum ${signed(myScore(res.datum))}。主流合約：${esc(formatMainstream(r.item.mainstream))}。</p>
       ${r.deal ? dealDiagram(r.deal, mySeats) : '<p class="muted small">這份成績表沒有牌型。</p>'}
       <h4>全場結果（${r.field.length} 桌，以你的方向計分）</h4>
       <table class="table field">

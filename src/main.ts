@@ -140,6 +140,11 @@ async function init() {
   app.innerHTML = '<p class="muted center">載入中…</p>';
   try {
     [state.events, state.aliases] = await Promise.all([loadEvents(), loadAliases()]);
+    // 早期版本存下的賽事沒有類型欄位，當時只支援隊制賽
+    for (const e of state.events) {
+      e.event.kind ??= 'teams';
+      e.event.scoring ??= 'imp-teams';
+    }
   } catch (err) {
     console.error(err);
   }

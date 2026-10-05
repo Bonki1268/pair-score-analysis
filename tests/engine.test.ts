@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { computeDatum, toImp } from '../src/engine/butler';
+import { computeDatum, crossImp, toImp } from '../src/engine/butler';
 import { bonusTier, classifyBoard, mainstreamContract } from '../src/engine/classify';
 import { generateInsights } from '../src/engine/insights';
 import { toPlayerBoard } from '../src/engine/player-boards';
@@ -20,6 +20,18 @@ test('computeDatum：平均後往 0 截到 10 分', () => {
   expect(computeDatum([170, 420, 420, -100])).toBe(220); // 227.5
   expect(computeDatum([-170, -420, -420, 100])).toBe(-220);
   expect(computeDatum([])).toBe(0);
+});
+
+test('computeDatum trimmed：去掉最高與最低各一筆（雙人賽牌局分析的 Mean）', () => {
+  // 1430 與 500 被去掉：(680×4 + 650) / 5 = 674 → 670
+  expect(computeDatum([1430, 680, 680, 680, 680, 650, 500], 'trimmed')).toBe(670);
+  expect(computeDatum([50, -90, -120, -120, -120, -140, -140], 'trimmed')).toBe(-110);
+});
+
+test('crossImp：和其他每一桌比後加總', () => {
+  // 420 對 420、170、−50：0 + 6 + 10
+  expect(crossImp(420, [420, 170, -50])).toBe(16);
+  expect(crossImp(-50, [420, 170, 420])).toBe(-10 - 6 - 10);
 });
 
 describe('墩差', () => {

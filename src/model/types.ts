@@ -22,9 +22,16 @@ export interface Contract {
   adjusted?: boolean;
 }
 
+/** teams：隊制賽；pairs：雙人賽 */
+export type EventKind = 'teams' | 'pairs';
+/** 成績表原本的計分方式 */
+export type Scoring = 'imp-teams' | 'butler' | 'cross-imp';
+
 export interface Event {
   eventId: string;
   name: string;
+  kind: EventKind;
+  scoring: Scoring;
   /** 組別，例如「學生組」「乙組」 */
   division: string;
   rounds: number;
@@ -60,7 +67,13 @@ export type Pair = [string, string];
 export interface BoardResult {
   matchId: string;
   eventId: string;
+  /** 這一桌打這副牌的輪次 */
   round: number;
+  /**
+   * 牌組所屬的輪次：同一副牌全場相同，用來找出「全場結果」與牌型。
+   * 隊制賽每輪換一組牌（等於 round）；雙人賽同一副牌各桌在不同輪打，整場為 0。省略時等於 round。
+   */
+  dealRound?: number;
   table: number;
   board: number;
   room: Room;
@@ -76,6 +89,8 @@ export interface BoardResult {
   datum: number;
   nsButler: number;
   ewButler: number;
+  /** 雙人賽成績表原本給南北的這副分數（Cross-IMP 或 Butler），核對與顯示用 */
+  nsSheetImp?: number;
 }
 
 export interface Hand {
@@ -87,6 +102,7 @@ export interface Hand {
 
 export interface Deal {
   eventId: string;
+  /** 牌組所屬的輪次，對應 BoardResult 的 dealRound */
   round: number;
   board: number;
   dealer: Seat;
@@ -101,6 +117,9 @@ export interface ParseWarning {
   reason: string;
 }
 
+/** Datum 的來源 */
+export type DatumSource = 'sheet' | 'computed';
+
 /** 一份成績表解析後的全部資料 */
 export interface ParsedEvent {
   event: Event;
@@ -109,8 +128,13 @@ export interface ParsedEvent {
   results: BoardResult[];
   deals: Deal[];
   warnings: ParseWarning[];
-  /** 成績表 ButlerP 工作表提供的配對 Butler（交叉核對用） */
+  /**
+   * 成績表提供的配對總分（交叉核對用）：隊制賽來自 ButlerP 工作表（Butler），
+   * 雙人賽來自「總成績」工作表（成績表原本的計分方式，不含 COP）
+   */
   sheetPairButler: { pair: Pair; teamNo: number; boards: number; imp: number }[];
+  /** 雙人賽 Datum 的來源：成績表「牌局分析」的 Mean，或系統自算 */
+  datumSource?: DatumSource;
 }
 
 export const SEATS: Seat[] = ['N', 'E', 'S', 'W'];

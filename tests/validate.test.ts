@@ -3,7 +3,8 @@ import { validateEvent } from '../src/engine/validate';
 import { dataFiles, load } from './helpers';
 
 describe.skipIf(dataFiles.length === 0)('自我核對能抓出錯誤', () => {
-  const p = () => load(dataFiles[0]);
+  // 用隊制賽成績表測試（雙人賽的核對項目不同）
+  const p = () => load(dataFiles.find((f) => load(f).event.kind === 'teams')!);
 
   test('解析出錯時核對會失敗', () => {
     const broken = { ...p(), results: p().results.map((r, i) => (i === 0 ? { ...r, nsButler: r.nsButler + 1, ewButler: r.ewButler - 1 } : r)).slice(0, -1) };

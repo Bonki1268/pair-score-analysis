@@ -66,12 +66,20 @@ function checksHtml(e: ParsedEvent): string {
   </details>`;
 }
 
+const SCORING_TEXT = { 'imp-teams': '隊制賽', butler: '雙人賽 · Butler 計分', 'cross-imp': '雙人賽 · Cross-IMP 計分' } as const;
+
+function summaryLine(e: ParsedEvent): string {
+  const unit = e.event.kind === 'pairs' ? '對' : '隊';
+  const boards = e.event.kind === 'pairs' ? `${e.deals.length || '?'} 副牌` : `${e.event.rounds} 輪 × ${e.event.boardsPerRound} 副`;
+  return `${SCORING_TEXT[e.event.scoring]} · ${e.teams.length} ${unit} · ${boards} · ${e.results.length} 筆桌次結果`;
+}
+
 function eventRow(e: ParsedEvent): string {
   const w = e.warnings.length;
   return `<li class="event">
     <div class="event-main">
       <div><strong>${esc(e.event.name)}</strong></div>
-      <div class="muted small">${e.teams.length} 隊 · ${e.event.rounds} 輪 × ${e.event.boardsPerRound} 副 · ${e.results.length} 筆桌次結果</div>
+      <div class="muted small">${summaryLine(e)}</div>
       ${checksHtml(e)}
       ${
         w

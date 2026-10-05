@@ -10,10 +10,10 @@
 
 | 目錄 | 內容 |
 | --- | --- |
-| `src/parsers/` | `detect.ts` 格式偵測、`swiss-imp.ts` Swiss R / R1… / Hands / ButlerP 格式、`contract.ts` 合約字串、`names.ts` 配對拆名 |
+| `src/parsers/` | `detect.ts` 格式偵測、`swiss-imp.ts` 隊制賽（Swiss R / R1… / Hands / ButlerP）、`pairs-imp.ts` IMP 雙人賽（總成績 名次 / 個人成績T / 個人成績D / 牌局分析）、`hands.ts` 四家牌型、`contract.ts` 合約字串、`names.ts` 配對拆名 |
 | `src/model/` | `types.ts` 資料表型別、`store.ts` IndexedDB 暫存 |
 | `src/index/` | `players.ts` 賽員索引、模糊搜尋、別名 |
-| `src/engine/` | `butler.ts` IMP 與 Datum、`trick-diff.ts` 墩差、`classify.ts` 六類輸贏分類、`insights.ts` 結論規則、`report.ts` 組合個人報告 |
+| `src/engine/` | `validate.ts` 上傳後的自我核對、`butler.ts` IMP、Datum 與 Cross-IMP、`trick-diff.ts` 墩差、`classify.ts` 六類輸贏分類、`insights.ts` 結論規則、`report.ts` 組合個人報告 |
 | `src/ui/` | 上傳、搜尋、報告頁、SVG 長條圖、四家牌型圖 |
 | `src/config/thresholds.json` | 結論門檻 |
 
@@ -26,6 +26,16 @@
 - COP 欄是裁判額外判給的 IMP，含在對局總 IMP 裡。
 - 牌號在不同輪可能重複，牌型以「輪 + 牌號」對應；Hands 以「# 牌號」為錨點定位四家。
 - 英文名本身可能含空白，甚至含兩個連續空白，拆配對時先比對 Players 工作表的隊員名單。
+
+## 成績表格式重點（IMP 雙人賽）
+
+- 個人成績T 每一對列出打過的每一副：座位、輪次與對手（只寫在該輪第一副）、合約、得分、成績表的單副分數。每一桌出現兩次，合併成一筆南北觀點的結果。
+- 同一副牌各桌在不同輪打，所以「全場結果」以 `dealRound`（雙人賽為 0）加牌號辨識，不用 `round`。
+- 計分方式由單副分數自動判斷：和 Butler 重算吻合較多是 Butler，和 Cross-IMP 重算吻合較多是 Cross-IMP。
+- 牌局分析有 Mean 時就是 Datum（去掉最高與最低分後平均，往 0 截到 10 分）；沒有時系統以全場平均自算。
+- 報告一律用 Datum 算 Butler，讓隊制賽與不同計分的雙人賽可以合併比較；成績表原本的分數存在 `nsSheetImp`，供核對與顯示。
+- 隊伍（Team）在雙人賽代表一對，隊名為兩人姓名。
+- 尚未支援 MP（比賽分）計分的雙人賽。
 
 ## 分析判斷
 

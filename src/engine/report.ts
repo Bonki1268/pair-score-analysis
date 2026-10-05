@@ -1,4 +1,4 @@
-import type { BoardResult, Deal, ParsedEvent, Side } from '../model/types';
+import type { BoardResult, Deal, Event, ParsedEvent, Side } from '../model/types';
 import thresholds from '../config/thresholds.json';
 import { boardKey, groupByBoard } from './butler';
 import { categoryStats, classifyAll, type CategoryStat, type Classified } from './classify';
@@ -46,6 +46,8 @@ export interface PlayerReport {
   seats: GroupStat[];
   rounds: RoundStat[];
   overbidCount: number;
+  /** 雙人賽成績表原本的分數加總（Cross-IMP 或 Butler）；混合不同計分方式時為 null */
+  sheetScore: { label: string; imp: number } | null;
   insights: Insight[];
   headline: string;
   lowSample: boolean;
@@ -60,6 +62,7 @@ export interface Dataset {
   deals: Map<string, Deal>;
   teamNames: Map<string, string>;
   eventNames: Map<string, string>;
+  eventInfo: Map<string, Event>;
 }
 
 export function buildDataset(events: ParsedEvent[]): Dataset {
@@ -75,6 +78,7 @@ export function buildDataset(events: ParsedEvent[]): Dataset {
     deals,
     teamNames,
     eventNames: new Map(events.map((e) => [e.event.eventId, e.event.name])),
+    eventInfo: new Map(events.map((e) => [e.event.eventId, e.event])),
   };
 }
 
@@ -165,6 +169,17 @@ export function buildReport(ds: Dataset, name: string, filter: PlayerFilter = {}
   const worst = sorted.slice(0, thresholds.reviewWorst);
   const best = sorted.slice(-thresholds.reviewBest).reverse().filter((x) => !worst.includes(x));
 
+  // 只有全部牌局都來自同一種計分方式的雙人賽時，成績表分數才能加總
+  let sheetScore: PlayerReport['sheetScore'] = null;
+  const scorings = new Set(boards.map((b) => ds.eventInfo.get(b.result.eventId)?.scoring));
+  if (boards.length > 0 && scorings.size === 1 && boards.every((b) => b.result.nsSheetImp !== undefined)) {
+    const scoring = [...scorings][0];
+    sheetScore = {
+      label: scoring === 'cross-imp' ? 'Cross-IMP' : 'Butler',
+      imp: sum(boards.map((b) => (b.side === 'NS' ? b.result.nsSheetImp! : -b.result.nsSheetImp!))),
+    };
+  }
+
   return {
     name,
     boards: boards.length,
@@ -178,6 +193,7 @@ export function buildReport(ds: Dataset, name: string, filter: PlayerFilter = {}
     seats,
     rounds: [...roundMap.values()],
     overbidCount,
+    sheetScore,
     insights,
     headline,
     lowSample,

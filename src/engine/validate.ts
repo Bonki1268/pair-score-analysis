@@ -1,6 +1,6 @@
-import type { ParsedEvent } from '../model/types';
+import type { BoardResult, ParsedEvent } from '../model/types';
 import { pairKey } from '../parsers/names';
-import { computeDatum, groupByBoard } from './butler';
+import { boardKey, butlerOf, computeDatum, crossImp, groupByBoard } from './butler';
 
 export type CheckStatus = 'pass' | 'fail' | 'skip';
 
@@ -16,8 +16,13 @@ export interface Check {
  * 使用者上傳任何一份新成績表時都會執行，確認解析結果可信。
  */
 export function validateEvent(p: ParsedEvent): Check[] {
+  if (p.event.kind === 'pairs') {
+    return [pairsCountCheck(p), pairTotalsCheck(p), sheetImpCheck(p), pairsDatumCheck(p), dealCheck(p), warningCheck(p)];
+  }
   return [countCheck(p), butlerCheck(p), matchImpCheck(p), datumCheck(p), dealCheck(p), warningCheck(p)];
 }
+
+// ---------- 隊制賽 ----------
 
 function countCheck(p: ParsedEvent): Check {
   const label = '桌次筆數';
@@ -31,9 +36,8 @@ function countCheck(p: ParsedEvent): Check {
     : { id: 'count', label, status: 'fail', detail: `解析出 ${got} 筆，預期 ${want} 筆` };
 }
 
-function butlerCheck(p: ParsedEvent): Check {
-  const label = '配對 Butler 與 ButlerP 工作表';
-  if (p.sheetPairButler.length === 0) return { id: 'butler', label, status: 'skip', detail: '成績表沒有 ButlerP 工作表' };
+/** 每一對的牌數與分數總和；score 決定加總哪一個分數 */
+function pairSums(results: BoardResult[], score: (r: BoardResult, side: 'NS' | 'EW') => number) {
   const totals = new Map<string, { boards: number; imp: number }>();
   const add = (pair: [string, string], team: number, imp: number) => {
     const k = `${team}|${pairKey(pair)}`;
@@ -42,19 +46,29 @@ function butlerCheck(p: ParsedEvent): Check {
     t.imp += imp;
     totals.set(k, t);
   };
-  for (const r of p.results) {
-    add(r.nsPair, r.nsTeam, r.nsButler);
-    add(r.ewPair, r.ewTeam, r.ewButler);
+  for (const r of results) {
+    add(r.nsPair, r.nsTeam, score(r, 'NS'));
+    add(r.ewPair, r.ewTeam, score(r, 'EW'));
   }
+  return totals;
+}
+
+function compareTotals(p: ParsedEvent, id: string, label: string, totals: Map<string, { boards: number; imp: number }>, unit: string): Check {
   const bad = p.sheetPairButler.filter((s) => {
     const t = totals.get(`${s.teamNo}|${pairKey(s.pair)}`);
-    return !t || t.boards !== s.boards || t.imp !== s.imp;
+    return !t || t.boards !== s.boards || Math.abs(t.imp - s.imp) > 1e-9;
   });
   if (bad.length === 0 && totals.size === p.sheetPairButler.length) {
-    return { id: 'butler', label, status: 'pass', detail: `${totals.size} 個配對全部一致` };
+    return { id, label, status: 'pass', detail: `${totals.size} ${unit}全部一致` };
   }
   const sample = bad.slice(0, 3).map((s) => s.pair.join(' ')).join('、');
-  return { id: 'butler', label, status: 'fail', detail: `${bad.length} 個配對不一致${sample ? `（例如 ${sample}）` : ''}；系統配對數 ${totals.size}，工作表 ${p.sheetPairButler.length}` };
+  return { id, label, status: 'fail', detail: `${bad.length} ${unit}不一致${sample ? `（例如 ${sample}）` : ''}；系統 ${totals.size} 對，成績表 ${p.sheetPairButler.length} 對` };
+}
+
+function butlerCheck(p: ParsedEvent): Check {
+  const label = '配對 Butler 與 ButlerP 工作表';
+  if (p.sheetPairButler.length === 0) return { id: 'butler', label, status: 'skip', detail: '成績表沒有 ButlerP 工作表' };
+  return compareTotals(p, 'butler', label, pairSums(p.results, (r, side) => (side === 'NS' ? r.nsButler : r.ewButler)), '個配對');
 }
 
 function matchImpCheck(p: ParsedEvent): Check {
@@ -79,15 +93,69 @@ function datumCheck(p: ParsedEvent): Check {
     : { id: 'datum', label, status: 'fail', detail: `${bad.length}/${groups.length} 副不一致；報告仍採用成績表的 Datum，可能是計分軟體算法不同` };
 }
 
+// ---------- 雙人賽 ----------
+
+const SCORING_LABEL = { butler: 'Butler', 'cross-imp': 'Cross-IMP', 'imp-teams': 'IMP' } as const;
+
+function pairsCountCheck(p: ParsedEvent): Check {
+  const label = '桌次筆數';
+  if (p.sheetPairButler.length === 0) return { id: 'count', label, status: 'skip', detail: '沒有總成績資料，無法核對' };
+  const played = p.sheetPairButler.reduce((s, x) => s + x.boards, 0);
+  const want = played / 2;
+  const got = p.results.length;
+  return got === want
+    ? { id: 'count', label, status: 'pass', detail: `${got} 筆 = ${p.sheetPairButler.length} 對共打 ${played} 副 ÷ 2` }
+    : { id: 'count', label, status: 'fail', detail: `解析出 ${got} 筆，預期 ${want} 筆` };
+}
+
+function pairTotalsCheck(p: ParsedEvent): Check {
+  const label = `配對 ${SCORING_LABEL[p.event.scoring]} 與總成績表`;
+  if (p.sheetPairButler.length === 0) return { id: 'totals', label, status: 'skip', detail: '成績表沒有「總成績 名次」工作表' };
+  const sheet = (r: BoardResult) => r.nsSheetImp ?? 0;
+  return compareTotals(p, 'totals', label, pairSums(p.results, (r, side) => (side === 'NS' ? sheet(r) : -sheet(r))), '對');
+}
+
+/** 用得分重算成績表給的單副分數（Butler 或 Cross-IMP） */
+function sheetImpCheck(p: ParsedEvent): Check {
+  const label = `自算 ${SCORING_LABEL[p.event.scoring]} 與成績表`;
+  const groups = groupByBoard(p.results);
+  const scored = p.results.filter((r) => !r.contract.adjusted && r.nsSheetImp !== undefined);
+  const bad = scored.filter((r) => {
+    if (p.event.scoring === 'cross-imp') {
+      const others = groups.get(boardKey(r))!.filter((o) => o !== r && !o.contract.adjusted).map((o) => o.nsScore);
+      return crossImp(r.nsScore, others) !== r.nsSheetImp;
+    }
+    return butlerOf(r.nsScore, r.datum) !== r.nsSheetImp;
+  });
+  return bad.length === 0
+    ? { id: 'sheet-imp', label, status: 'pass', detail: `${scored.length} 筆全部一致` }
+    : { id: 'sheet-imp', label, status: 'fail', detail: `${bad.length}/${scored.length} 筆不一致（例如第 ${bad[0].board} 副）` };
+}
+
+function pairsDatumCheck(p: ParsedEvent): Check {
+  const label = '自算 Datum 與成績表';
+  if (p.datumSource !== 'sheet') {
+    return { id: 'datum', label, status: 'skip', detail: '成績表沒有提供 Datum，系統以全場平均自算' };
+  }
+  // 雙人賽「牌局分析」的 Mean 是去掉最高與最低分後的平均
+  const groups = [...groupByBoard(p.results).values()];
+  const bad = groups.filter((rs) => computeDatum(rs.filter((r) => !r.contract.adjusted).map((r) => r.nsScore), 'trimmed') !== rs[0].datum);
+  return bad.length === 0
+    ? { id: 'datum', label, status: 'pass', detail: `${groups.length} 副全部一致` }
+    : { id: 'datum', label, status: 'fail', detail: `${bad.length}/${groups.length} 副不一致；報告仍採用成績表的 Datum，可能是計分軟體算法不同` };
+}
+
+// ---------- 共通 ----------
+
 function dealCheck(p: ParsedEvent): Check {
   const label = '牌型完整';
-  if (p.deals.length === 0) return { id: 'deals', label, status: 'skip', detail: '成績表沒有 Hands 工作表，報告不會顯示牌型' };
+  if (p.deals.length === 0) return { id: 'deals', label, status: 'skip', detail: '成績表沒有牌型工作表，報告不會顯示牌型' };
   const bad = p.deals.filter((d) => {
     const cards = Object.values(d.hands).flatMap((h) => (['S', 'H', 'D', 'C'] as const).flatMap((s) => [...h[s]].map((x) => s + x)));
     return cards.length !== 52 || new Set(cards).size !== 52;
   });
-  const keys = new Set(p.deals.map((d) => `${d.round}|${d.board}`));
-  const missing = new Set(p.results.filter((r) => !keys.has(`${r.round}|${r.board}`)).map((r) => `R${r.round} 第 ${r.board} 副`));
+  const keys = new Set(p.deals.map(boardKey));
+  const missing = new Set(p.results.filter((r) => !keys.has(boardKey(r))).map((r) => `R${r.round} 第 ${r.board} 副`));
   if (bad.length === 0 && missing.size === 0) return { id: 'deals', label, status: 'pass', detail: `${p.deals.length} 副，每副 52 張` };
   const parts = [];
   if (bad.length) parts.push(`${bad.length} 副牌張數不對`);

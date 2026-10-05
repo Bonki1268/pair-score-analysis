@@ -54,8 +54,9 @@ describe.skipIf(goldenFiles.length === 0)('黃金標準值', () => {
         let boards = 0;
         let imp = 0;
         for (const r of p().results) {
-          if (pairKey(r.nsPair) === pairKey(g.pair)) (boards++, (imp += r.nsButler));
-          if (pairKey(r.ewPair) === pairKey(g.pair)) (boards++, (imp += r.ewButler));
+          const ns = g.score === 'sheet' ? (r.nsSheetImp ?? 0) : r.nsButler;
+          if (pairKey(r.nsPair) === pairKey(g.pair)) (boards++, (imp += ns));
+          if (pairKey(r.ewPair) === pairKey(g.pair)) (boards++, (imp -= ns));
         }
         expect({ boards, imp }).toEqual({ boards: g.boards, imp: g.imp });
       }

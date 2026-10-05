@@ -11,14 +11,14 @@ describe.skipIf(!hasGolden || !golden?.merged)('個人報告（端對端：上�
     const d = ds();
     const r = search(buildIndex(d.events, d.results), m().query);
     expect(r[0].name).toBe(m().player);
-    expect(new Set(r[0].entries.map((e) => e.teamName))).toEqual(new Set([m().team]));
+    for (const e of r[0].entries) expect(m().teams).toContain(e.teamName);
   });
 
   test('每份賽事中與指定搭檔的牌數與 Butler', () => {
     const d = ds();
     for (const file of goldenFiles) {
       for (const g of golden!.files[file].pairs) {
-        if (!g.pair.includes(m().player)) continue;
+        if (!g.pair.includes(m().player) || g.score === 'sheet') continue;
         const partner = g.pair.find((n) => n !== m().player)!;
         const rep = buildReport(d, m().player, { eventIds: [load(file).event.eventId], partner });
         expect({ boards: rep.boards, imp: rep.butler }).toEqual({ boards: g.boards, imp: g.imp });

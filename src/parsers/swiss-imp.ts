@@ -2,7 +2,6 @@ import type { WorkBook } from 'xlsx';
 import type {
   BoardResult,
   Deal,
-  Hand,
   Match,
   Pair,
   ParsedEvent,
@@ -14,6 +13,7 @@ import type {
 } from '../model/types';
 import { parseContract } from './contract';
 import { Grid, norm } from './grid';
+import { readDeals, standardDealer, standardVul } from './hands';
 import { splitPair } from './names';
 
 /**
@@ -68,6 +68,8 @@ export function parseSwissImp(wb: WorkBook, fileName: string): ParsedEvent {
     event: {
       eventId,
       name: title,
+      kind: 'teams',
+      scoring: 'imp-teams',
       division: parts.length > 1 ? parts[parts.length - 1] : '',
       rounds: roundSheets.length,
       boardsPerRound,
@@ -357,21 +359,6 @@ function normalizeVul(s: string): Vulnerability {
 
 // ---------- 牌型 ----------
 
-const SUIT_CODE: Record<string, keyof Hand> = { 'ª': 'S', '©': 'H', '¨': 'D', '§': 'C', '♠': 'S', '♥': 'H', '♦': 'D', '♣': 'C' };
-
-function standardDealer(board: number): Seat {
-  return (['N', 'E', 'S', 'W'] as Seat[])[(board - 1) % 4];
-}
-
-function standardVul(board: number): Vulnerability {
-  const table: Vulnerability[] = ['None', 'NS', 'EW', 'Both', 'NS', 'EW', 'Both', 'None', 'EW', 'Both', 'None', 'NS', 'Both', 'None', 'NS', 'EW'];
-  return table[(board - 1) % 16];
-}
-
-/**
- * Hands 工作表：每副牌以「# 牌號」為錨點，
- * 北家在錨點右側兩欄（往下 4 列），西家在錨點正下方，東家在右側十欄，南家在北家下方 8 列。
- */
 function parseHands(
   g: Grid | null,
   eventId: string,
@@ -382,51 +369,17 @@ function parseHands(
     warnings.push({ sheet: 'Hands', cell: '', raw: '', reason: '缺少 Hands 工作表，報告不會顯示牌型' });
     return [];
   }
-  const deals: Deal[] = [];
-  const readHand = (r: number, c: number): Hand | null => {
-    const hand: Hand = { S: '', H: '', D: '', C: '' };
-    let found = 0;
-    for (let i = 0; i < 4; i++) {
-      const sym = g.str(r + i, c);
-      const suit = SUIT_CODE[sym];
-      if (!suit) continue;
-      found++;
-      const cards = g.str(r + i, c + 1).toUpperCase().replace(/10/g, 'T');
-      hand[suit] = /^[-—–]$/.test(cards) ? '' : cards.replace(/[^AKQJT2-9]/g, '');
-    }
-    return found === 4 ? hand : null;
-  };
-  // 「… ==> R3」標題列切開各輪；同一個牌號在不同輪可能重複使用
-  let round = 0;
-  for (let r = 0; r < g.rowCount; r++) {
-    for (const { v } of g.cells(r)) {
-      const m = typeof v === 'string' ? /==>\s*R(\d+)/.exec(v) : null;
-      if (m) round = Number(m[1]);
-    }
-    for (const { c, v } of g.cells(r)) {
-      if (v !== '#') continue;
-      const board = g.num(r, c + 1);
-      if (board === null) continue;
-      const n = readHand(r, c + 2);
-      const w = readHand(r + 4, c);
-      const e = readHand(r + 4, c + 10);
-      const s = readHand(r + 8, c + 2);
-      if (!n || !w || !e || !s) {
-        warnings.push({ sheet: g.name, cell: g.ref(r, c), raw: `#${board}`, reason: '牌型不完整' });
-        continue;
-      }
-      const meta = boardMeta.get(`${round}|${board}`);
-      deals.push({
-        eventId,
-        round,
-        board,
-        dealer: meta?.dealer ?? standardDealer(board),
-        vulnerability: meta?.vul ?? standardVul(board),
-        hands: { N: n, E: e, S: s, W: w },
-      });
-    }
-  }
-  return deals;
+  return readDeals(g, warnings).map((d) => {
+    const meta = boardMeta.get(`${d.round}|${d.board}`);
+    return {
+      eventId,
+      round: d.round,
+      board: d.board,
+      dealer: meta?.dealer ?? standardDealer(d.board),
+      vulnerability: meta?.vul ?? standardVul(d.board),
+      hands: d.hands,
+    };
+  });
 }
 
 // ---------- ButlerP ----------

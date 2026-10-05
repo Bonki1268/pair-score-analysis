@@ -2,7 +2,8 @@ import type { BoardResult, ParsedEvent } from '../model/types';
 import { pairKey } from '../parsers/names';
 import { boardKey, butlerOf, computeDatum, crossImp, groupByBoard } from './butler';
 
-export type CheckStatus = 'pass' | 'fail' | 'skip';
+/** warn：成績表本身前後不一致，但原因已確認、不影響解析；報告照成績表的數字 */
+export type CheckStatus = 'pass' | 'fail' | 'skip' | 'warn';
 
 export interface Check {
   id: string;
@@ -82,15 +83,62 @@ function matchImpCheck(p: ParsedEvent): Check {
     : { id: 'imp', label, status: 'fail', detail: `${bad.length} 場不一致（例如第 ${bad[0].round} 輪第 ${bad[0].table} 桌）` };
 }
 
+/** 成績表改了某一桌的成績，但 Datum 與 Butler 仍是用修改前的得分算的 */
+export interface StaleCorrection {
+  result: BoardResult;
+  /** 能同時讓成績表的 Datum 與這一桌 Butler 成立的得分範圍（以 10 分為單位） */
+  original: [number, number];
+}
+
+/**
+ * 找出 Datum 與自算不同、或有桌次 Butler ≠ IMP(得分 − 成績表 Datum) 的牌，並嘗試用「單一桌事後改成績」解釋：
+ * 恰好一桌的 Butler 不符，而且存在某個得分能同時重現成績表的 Datum 與該桌 Butler。
+ * 修改幅度小時 Datum 截到 10 分後可能不變，只有該桌 Butler 不同，也算在內。
+ */
+export function datumMismatches(p: ParsedEvent): { stale: StaleCorrection[]; unexplained: BoardResult[][] } {
+  const stale: StaleCorrection[] = [];
+  const unexplained: BoardResult[][] = [];
+  for (const rs of groupByBoard(p.results).values()) {
+    const valid = rs.filter((r) => !r.contract.adjusted);
+    const off = valid.filter((r) => butlerOf(r.nsScore, r.datum) !== r.nsButler);
+    if (off.length === 0 && computeDatum(valid.map((r) => r.nsScore)) === rs[0].datum) continue;
+    if (off.length === 1) {
+      const r = off[0];
+      const others = valid.filter((x) => x !== r).map((x) => x.nsScore);
+      const xs: number[] = [];
+      for (let x = -8000; x <= 8000; x += 10) if (butlerOf(x, r.datum) === r.nsButler && computeDatum([...others, x]) === r.datum) xs.push(x);
+      if (xs.length) {
+        stale.push({ result: r, original: [xs[0], xs[xs.length - 1]] });
+        continue;
+      }
+    }
+    unexplained.push(rs);
+  }
+  return { stale, unexplained };
+}
+
+const roomLabel = (r: BoardResult) => (r.room === 'open' ? '公開室' : '閉室');
+const scoreText = (x: number) => (x > 0 ? `+${x}` : String(x));
+
 function datumCheck(p: ParsedEvent): Check {
-  const label = '自算 Datum 與成績表';
+  const label = '自算 Datum、Butler 與成績表';
   const groups = [...groupByBoard(p.results).values()];
   if (groups.length === 0) return { id: 'datum', label, status: 'skip', detail: '沒有牌局結果' };
-  const bad = groups.filter((rs) => computeDatum(rs.filter((r) => !r.contract.adjusted).map((r) => r.nsScore)) !== rs[0].datum);
+  const { stale, unexplained } = datumMismatches(p);
+  if (stale.length === 0 && unexplained.length === 0) return { id: 'datum', label, status: 'pass', detail: `${groups.length} 副全部一致` };
   // Datum 算法因計分軟體而異；不一致不影響報告（報告採用成績表的 Datum），只提示
-  return bad.length === 0
-    ? { id: 'datum', label, status: 'pass', detail: `${groups.length} 副全部一致` }
-    : { id: 'datum', label, status: 'fail', detail: `${bad.length}/${groups.length} 副不一致；報告仍採用成績表的 Datum，可能是計分軟體算法不同` };
+  if (unexplained.length > 0) {
+    return { id: 'datum', label, status: 'fail', detail: `${stale.length + unexplained.length}/${groups.length} 副不一致；報告仍採用成績表的 Datum，可能是計分軟體算法不同` };
+  }
+  const list = stale
+    .map(({ result: r, original: [lo, hi] }) => `R${r.round} 第 ${r.board} 副第 ${r.table} 桌${roomLabel(r)}（現為 ${scoreText(r.nsScore)}，原約 ${lo === hi ? scoreText(lo) : `${scoreText(lo)}～${scoreText(hi)}`}）`)
+    .join('、');
+  return {
+    id: 'datum',
+    label,
+    status: 'warn',
+    detail: `${stale.length}/${groups.length} 副有一桌成績事後被修改，但成績表沒有重算 Datum 與 Butler：${list}。對局 IMP 已依修改後的成績計算；報告沿用成績表公布的 Datum 與 Butler，和 ButlerP 一致`,
+  };
 }
 
 // ---------- 雙人賽 ----------

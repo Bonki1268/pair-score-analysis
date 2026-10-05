@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { butlerOf } from '../src/engine/butler';
-import { validateEvent } from '../src/engine/validate';
+import { datumMismatches, validateEvent } from '../src/engine/validate';
 import { pairKey } from '../src/parsers/names';
 import { dataFiles, golden, goldenFiles, load } from './helpers';
 
@@ -12,8 +12,10 @@ describe.skipIf(dataFiles.length === 0)('自我核對：資料/ 底下的每份�
     });
 
     test('Butler 等於 IMP(得分 − Datum)', () => {
+      // 成績事後被修改、沒有重算 Butler 的桌次由 Datum 核對另外提醒
+      const stale = new Set(load(file).event.kind === 'teams' ? datumMismatches(load(file)).stale.map((s) => s.result) : []);
       for (const r of load(file).results) {
-        if (r.contract.adjusted) continue;
+        if (r.contract.adjusted || stale.has(r)) continue;
         expect(butlerOf(r.nsScore, r.datum)).toBe(r.nsButler);
       }
     });

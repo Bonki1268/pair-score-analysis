@@ -49,16 +49,20 @@ export function renderUpload(events: ParsedEvent[], errors: string[], handlers: 
   return el;
 }
 
-const STATUS_ICON: Record<Check['status'], string> = { pass: '✓', fail: '✗', skip: '–' };
+const STATUS_ICON: Record<Check['status'], string> = { pass: '✓', fail: '✗', skip: '–', warn: '!' };
 
-/** 成績表自我核對結果：全部通過時收合，有失敗時展開 */
+/** 成績表自我核對結果：全部通過時收合，有失敗或提醒時展開 */
 function checksHtml(e: ParsedEvent): string {
   const checks = validateEvent(e);
   const failed = checks.filter((c) => c.status === 'fail').length;
+  const warned = checks.filter((c) => c.status === 'warn').length;
   const ran = checks.filter((c) => c.status !== 'skip').length;
-  const passed = ran - failed;
-  const summary = failed === 0 ? `核對 ${passed}/${ran} 項通過` : `核對 ${failed} 項有問題，報告數字可能不正確`;
-  return `<details class="checks ${failed ? 'checks-fail' : 'checks-pass'}" ${failed ? 'open' : ''}>
+  const passed = ran - failed - warned;
+  const summary = failed
+    ? `核對 ${failed} 項有問題，報告數字可能不正確`
+    : `核對 ${passed}/${ran} 項通過${warned ? `，${warned} 項提醒` : ''}`;
+  const cls = failed ? 'checks-fail' : warned ? 'checks-warn' : 'checks-pass';
+  return `<details class="checks ${cls}" ${failed || warned ? 'open' : ''}>
     <summary>${summary}</summary>
     <ul>${checks
       .map((c) => `<li class="check-${c.status}"><span class="check-icon" aria-label="${c.status}">${STATUS_ICON[c.status]}</span><span><strong>${esc(c.label)}</strong>：${esc(c.detail)}</span></li>`)

@@ -17,6 +17,8 @@ export interface InsightInput {
   declare: TrickStat;
   defend: TrickStat;
   overbidCount: number;
+  /** 我方主打的副數，叫過頭比例的分母 */
+  declared: number;
 }
 
 const fmt = (x: number, digits = 1) => (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x).toFixed(digits);
@@ -43,11 +45,12 @@ export function generateInsights(input: InsightInput, t: Thresholds = defaults):
   if (input.defend.count >= t.trickDiffMinBoards && input.defend.mean <= t.trickDiffWeak) {
     out.push({ kind: 'defend-weak', text: '防守可能比場上弱', evidence: `比較 ${input.defend.count} 副，平均 ${fmt(input.defend.mean, 2)} 墩` });
   }
-  if (input.boards > 0 && input.overbidCount / input.boards >= t.overbidRate) {
+  // 只有我方主打的牌才可能叫過頭，比例以主打副數為分母
+  if (input.declared >= t.overbidMinDeclared && input.overbidCount / input.declared >= t.overbidRate) {
     out.push({
       kind: 'overbid',
       text: '常叫過頭，宕多墩',
-      evidence: `主打宕 ${t.overbidDownTricks} 墩以上 ${input.overbidCount} 次，占 ${((input.overbidCount / input.boards) * 100).toFixed(0)}%`,
+      evidence: `主打 ${input.declared} 副中宕 ${t.overbidDownTricks} 墩以上 ${input.overbidCount} 次，占 ${((input.overbidCount / input.declared) * 100).toFixed(0)}%`,
     });
   }
 

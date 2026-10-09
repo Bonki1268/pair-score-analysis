@@ -206,7 +206,7 @@ Butler 總分 = Σ 我的 Butler
 | 〈類別〉是得分來源 | 同上類別與牌數，且每牌 ≥ `strongCategoryImpPerBoard`（+1.0） |
 | 做莊可能比場上弱 | 做莊比較副數 ≥ `trickDiffMinBoards`（8），且平均墩差 ≤ `trickDiffWeak`（−0.3） |
 | 防守可能比場上弱 | 防守比較副數 ≥ 8，且平均墩差 ≤ −0.3 |
-| 常叫過頭，宕多墩 | 叫過頭次數 / 總牌數 ≥ `overbidRate`（8%） |
+| 常叫過頭，宕多墩 | 主打副數 ≥ `overbidMinDeclared`（8），且叫過頭次數 / 主打副數 ≥ `overbidRate`（20%） |
 | 做莊穩定（只出現在標題） | 做莊比較副數 ≥ 8，且平均墩差 > −0.3 |
 
 - 總牌數 < `minSampleBoards`（20）時，標題後加註「樣本不足，僅供參考」。

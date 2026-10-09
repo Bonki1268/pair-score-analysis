@@ -258,7 +258,7 @@ function method(): string {
         </ol>
         <p>主打宕 ${thresholds.overbidDownTricks} 墩以上另外標記「叫過頭」，可以和其他類別同時成立。調整分、Pass 局與全場無共識不計入技術類別，也不用來判斷強弱項。</p>
         <p><strong>墩差</strong>：和同一副牌、同一方主打、同階、同花色的其他桌次比墩數，排除叫牌的影響。</p>
-        <p><strong>結論規則</strong>：叫牌類別每牌 ≤ ${thresholds.weakCategoryImpPerBoard} IMP 且至少 ${thresholds.categoryMinBoards} 副為弱項、≥ +${thresholds.strongCategoryImpPerBoard} 為強項；墩差 ≤ ${thresholds.trickDiffWeak} 且至少 ${thresholds.trickDiffMinBoards} 副為偏弱；宕 ${thresholds.overbidDownTricks} 墩以上達 ${thresholds.overbidRate * 100}% 為常叫過頭；總牌數少於 ${thresholds.minSampleBoards} 副時所有結論僅供參考。</p>
+        <p><strong>結論規則</strong>：叫牌類別每牌 ≤ ${thresholds.weakCategoryImpPerBoard} IMP 且至少 ${thresholds.categoryMinBoards} 副為弱項、≥ +${thresholds.strongCategoryImpPerBoard} 為強項；墩差 ≤ ${thresholds.trickDiffWeak} 且至少 ${thresholds.trickDiffMinBoards} 副為偏弱；主打至少 ${thresholds.overbidMinDeclared} 副、其中宕 ${thresholds.overbidDownTricks} 墩以上達 ${thresholds.overbidRate * 100}% 為常叫過頭；總牌數少於 ${thresholds.minSampleBoards} 副時所有結論僅供參考。</p>
         <p><strong>限制</strong>：成績表沒有叫牌過程與首攻，無法判斷失分「為什麼」發生；墩差不區分首攻方向；對手強弱未調整。</p>
       </div>
     </details>

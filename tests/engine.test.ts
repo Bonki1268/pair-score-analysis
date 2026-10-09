@@ -97,7 +97,7 @@ describe('結論規則', () => {
   const trick = (count: number, m: number): TrickStat => ({ count, mean: m, better: 0, worse: 0, items: [] });
   const cat = (id: CategoryStat['id'], label: string, boards: number, perBoard: number): CategoryStat => ({ id, label, boards, imp: boards * perBoard, perBoard });
   const run = (over: Partial<Parameters<typeof generateInsights>[0]>) =>
-    generateInsights({ boards: 40, categories: [], declare: trick(0, 0), defend: trick(0, 0), overbidCount: 0, ...over });
+    generateInsights({ boards: 40, categories: [], declare: trick(0, 0), defend: trick(0, 0), overbidCount: 0, declared: 0, ...over });
 
   test('弱項：每牌 ≤ −1.0 且 ≥ 4 副', () => {
     expect(run({ categories: [cat('competitive', '競叫', 4, -1)] }).insights[0].text).toBe('主要失分在競叫');
@@ -116,9 +116,13 @@ describe('結論規則', () => {
     expect(run({ defend: trick(8, -0.31) }).insights.map((i) => i.kind)).toEqual(['defend-weak']);
     expect(run({ defend: trick(8, -0.29) }).insights).toEqual([]);
   });
-  test('叫過頭：宕 2 墩以上 ≥ 8%', () => {
-    expect(run({ boards: 50, overbidCount: 4 }).insights.map((i) => i.kind)).toEqual(['overbid']);
-    expect(run({ boards: 50, overbidCount: 3 }).insights).toEqual([]);
+  test('叫過頭：主打 ≥ 8 副，其中宕 2 墩以上 ≥ 20%', () => {
+    expect(run({ boards: 50, declared: 20, overbidCount: 4 }).insights.map((i) => i.kind)).toEqual(['overbid']);
+    expect(run({ boards: 50, declared: 20, overbidCount: 3 }).insights).toEqual([]);
+    // 分母是主打副數，不是總牌數：總牌數多但主打少時照樣觸發
+    expect(run({ boards: 100, declared: 10, overbidCount: 2 }).insights.map((i) => i.kind)).toEqual(['overbid']);
+    // 主打不到 8 副不下結論
+    expect(run({ boards: 50, declared: 7, overbidCount: 7 }).insights).toEqual([]);
   });
   test('樣本不足加註', () => {
     expect(run({ boards: 19 }).lowSample).toBe(true);

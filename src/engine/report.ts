@@ -154,7 +154,8 @@ export function buildReport(ds: Dataset, name: string, filter: PlayerFilter = {}
   const categories = categoryStats(classified);
   const butler = sum(boards.map((b) => b.butler));
   const overbidCount = classified.filter((c) => c.overbid).length;
-  const { insights, headline, lowSample } = generateInsights({ boards: boards.length, categories, declare: tricks.declare, defend: tricks.defend, overbidCount });
+  const declared = boards.filter((b) => b.role === 'declare').length;
+  const { insights, headline, lowSample } = generateInsights({ boards: boards.length, categories, declare: tricks.declare, defend: tricks.defend, overbidCount, declared });
 
   // 排名：只比較同樣篩選賽事、且牌數至少為本人一半的賽員，避免只打一輪的人排在最前面
   let rank: PlayerReport['rank'] = null;

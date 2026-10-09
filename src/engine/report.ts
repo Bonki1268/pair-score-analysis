@@ -3,7 +3,7 @@ import thresholds from '../config/thresholds.json';
 import { boardKey, groupByBoard } from './butler';
 import { categoryStats, classifyAll, DEFAULT_TIE_POLICY, type CategoryStat, type Classified, type TiePolicy } from './classify';
 import { generateInsights, type Insight } from './insights';
-import { mean, playerBoards, sum, type PlayerBoard, type PlayerFilter } from './player-boards';
+import { mean, playerBoards, sum, teamRef, type PlayerBoard, type PlayerFilter } from './player-boards';
 import { trickStats, type TrickStat } from './trick-diff';
 
 export interface GroupStat {
@@ -102,21 +102,47 @@ function groupStats(items: Classified[], keyOf: (pb: PlayerBoard) => string, lab
     .sort((a, b) => b.boards - a.boards || a.label.localeCompare(b.label));
 }
 
-/** 所選賽事中每位賽員的每牌 Butler，用來算排名百分位 */
+/**
+ * 排名用的賽員鍵值：同一賽事裡名字出現在兩隊以上時視為同名不同人，鍵值加上隊伍；
+ * 其他情況只用名字，跨賽事的同名視為同一人（和搜尋、報告的合併方式一致）
+ */
+export function rankKey(name: string, eventId: string, team: number, ambiguous: (name: string, eventId: string) => boolean): string {
+  return ambiguous(name, eventId) ? `${name}|${teamRef(eventId, team)}` : name;
+}
+
+/** 名字在某賽事是否出現在兩隊以上 */
+export function ambiguity(results: BoardResult[]): (name: string, eventId: string) => boolean {
+  const teams = new Map<string, Set<number>>();
+  const add = (name: string, eventId: string, team: number) => {
+    const k = `${eventId}|${name}`;
+    const s = teams.get(k) ?? new Set<number>();
+    s.add(team);
+    teams.set(k, s);
+  };
+  for (const r of results) {
+    for (const n of r.nsPair) add(n, r.eventId, r.nsTeam);
+    for (const n of r.ewPair) add(n, r.eventId, r.ewTeam);
+  }
+  return (name, eventId) => (teams.get(`${eventId}|${name}`)?.size ?? 0) > 1;
+}
+
+/** 所選賽事中每位賽員（以 rankKey 區分同名不同人）的 Butler 總和與牌數，用來算排名百分位 */
 export function playerAverages(ds: Dataset, eventIds?: string[]): Map<string, { boards: number; imp: number }> {
   const events = eventIds ? new Set(eventIds) : null;
+  const ambiguous = ambiguity(ds.results);
   const map = new Map<string, { boards: number; imp: number }>();
-  const add = (name: string, imp: number) => {
+  const add = (name: string, eventId: string, team: number, imp: number) => {
     if (!name) return;
-    const e = map.get(name) ?? { boards: 0, imp: 0 };
+    const k = rankKey(name, eventId, team, ambiguous);
+    const e = map.get(k) ?? { boards: 0, imp: 0 };
     e.boards++;
     e.imp += imp;
-    map.set(name, e);
+    map.set(k, e);
   };
   for (const r of ds.results) {
     if (events && !events.has(r.eventId)) continue;
-    for (const n of r.nsPair) add(n, r.nsButler);
-    for (const n of r.ewPair) add(n, r.ewButler);
+    for (const n of r.nsPair) add(n, r.eventId, r.nsTeam, r.nsButler);
+    for (const n of r.ewPair) add(n, r.eventId, r.ewTeam, r.ewButler);
   }
   return map;
 }
@@ -134,12 +160,15 @@ export function buildReport(ds: Dataset, name: string, filter: PlayerFilter = {}
   let rank: PlayerReport['rank'] = null;
   if (boards.length > 0 && !filter.partner) {
     const avgs = playerAverages(ds, filter.eventIds);
+    // 本人的牌可能分屬幾個鍵值（例如跨賽事合併）；這些鍵值都不列入比較對象，同名的另一人則照常比較
+    const ambiguous = ambiguity(ds.results);
+    const mineKeys = new Set(boards.map((b) => rankKey(name, b.result.eventId, b.team, ambiguous)));
     const minBoards = Math.max(1, Math.floor(boards.length / 2));
-    const pool = [...avgs.entries()].filter(([n, v]) => n === name || v.boards >= minBoards).map(([n, v]) => ({ n, avg: v.imp / v.boards }));
+    const others = [...avgs.entries()].filter(([k, v]) => !mineKeys.has(k) && v.boards >= minBoards).map(([, v]) => v.imp / v.boards);
     const mine = butler / boards.length;
-    const position = pool.filter((p) => p.n !== name && p.avg > mine).length + 1;
-    const below = pool.filter((p) => p.n !== name && p.avg < mine).length;
-    rank = { position, of: pool.length, percentile: pool.length > 1 ? (below / (pool.length - 1)) * 100 : 100 };
+    const position = others.filter((avg) => avg > mine).length + 1;
+    const below = others.filter((avg) => avg < mine).length;
+    rank = { position, of: others.length + 1, percentile: others.length > 0 ? (below / others.length) * 100 : 100 };
   }
 
   const sideLabel = (s: Side) => (s === 'NS' ? '南北' : '東西');

@@ -173,7 +173,7 @@ function partners(rep: PlayerReport, params: ReportParams): string {
 }
 
 function seatsAndRounds(rep: PlayerReport, short: Map<string, string>): string {
-  const bars = rep.rounds.map((r) => ({ label: `${short.has(r.eventId) ? short.get(r.eventId) + ' ' : ''}R${r.round}`, value: r.imp, note: r.opponent }));
+  const bars = rep.rounds.map((r) => ({ label: `R${r.round}${short.has(r.eventId) ? ` ${short.get(r.eventId)}` : ''}`, value: r.imp, note: r.opponent }));
   return `<section class="card">
     <h2>座位與輪次</h2>
     <table class="table">
@@ -184,7 +184,7 @@ function seatsAndRounds(rep: PlayerReport, short: Map<string, string>): string {
     </table>
     <h3>逐輪 Butler</h3>
     ${divergingBars(bars, { unit: ' IMP' })}
-    <p class="muted small">長條左側為該輪對手。對手強弱未調整，打弱隊的輪次會拉高平均。</p>
+    <p class="muted small">長條左側為輪次與該輪對手，名稱太長時會截斷，滑鼠移到長條上可看完整名稱。對手強弱未調整，打弱隊的輪次會拉高平均。</p>
   </section>`;
 }
 

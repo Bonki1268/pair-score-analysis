@@ -30,6 +30,8 @@ export type Scoring = 'imp-teams' | 'butler' | 'cross-imp';
 export interface Event {
   eventId: string;
   name: string;
+  /** 成績表標題；只有和其他賽事同標題、名稱加上檔名時才設定 */
+  title?: string;
   kind: EventKind;
   scoring: Scoring;
   /** 組別，例如「學生組」「乙組」 */

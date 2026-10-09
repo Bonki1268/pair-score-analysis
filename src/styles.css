@@ -121,6 +121,13 @@ summary { cursor: pointer; }
   border-radius: 8px;
 }
 
+.notice {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
 .events { list-style: none; padding: 0; margin: 12px 0 0; }
 .event {
   display: flex;
@@ -186,7 +193,7 @@ input.search:focus, textarea:focus, select:focus { outline: 2px solid var(--acce
 /* 報告頁 */
 .back { display: inline-block; margin-bottom: 8px; text-decoration: none; }
 .report-head { margin-bottom: 16px; }
-.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 12px; }
 .filters label { font-size: 0.85rem; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
 .filters select { padding: 8px; font-size: 0.95rem; }
 

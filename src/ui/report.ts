@@ -2,6 +2,7 @@ import type { Seat } from '../model/types';
 import type { PlayerEntry } from '../index/players';
 import { CATEGORIES, categoryLabel, EXTRA_CATEGORIES, formatMainstream, formatTied } from '../engine/classify';
 import type { Dataset, PlayerReport, ReviewItem } from '../engine/report';
+import { teamEvent, teamRef } from '../engine/player-boards';
 import thresholds from '../config/thresholds.json';
 import { divergingBars } from './charts';
 import { dealDiagram } from './deal-diagram';
@@ -17,7 +18,13 @@ export interface ReportParams {
 
 export function renderReport(ds: Dataset, rep: PlayerReport, params: ReportParams, entries: PlayerEntry[]): HTMLElement {
   const events = [...new Map(entries.map((e) => [e.eventId, e.eventName])).entries()];
-  const teams = [...new Set(entries.filter((e) => !params.event || e.eventId === params.event).map((e) => e.teamName))];
+  const inEvent = (e: PlayerEntry) => !params.event || e.eventId === params.event;
+  const shown = entries.filter((e) => inEvent(e) && (!params.team || teamEvent(params.team) !== e.eventId || teamRef(e.eventId, e.teamNo) === params.team));
+  const teams = [...new Set(shown.map((e) => e.teamName))];
+  // 同一賽事出現在兩隊以上（同名不同人）時才需要選隊伍
+  const perEvent = new Map<string, number>();
+  for (const e of entries) perEvent.set(e.eventId, (perEvent.get(e.eventId) ?? 0) + 1);
+  const teamChoices = entries.filter((e) => inEvent(e) && perEvent.get(e.eventId)! > 1);
   const allPartners = [...new Set(rep.partners.map((p) => p.key))];
 
   const el = h(`
@@ -33,6 +40,21 @@ export function renderReport(ds: Dataset, rep: PlayerReport, params: ReportParam
               ${events.map(([id, name]) => `<option value="${esc(id)}" ${params.event === id ? 'selected' : ''}>${esc(name)}</option>`).join('')}
             </select>
           </label>
+          ${
+            teamChoices.length
+              ? `<label>隊伍
+            <select data-filter="team">
+              <option value="">全部隊伍</option>
+              ${teamChoices
+                .map((e) => {
+                  const ref = teamRef(e.eventId, e.teamNo);
+                  return `<option value="${esc(ref)}" ${params.team === ref ? 'selected' : ''}>${esc(params.event ? e.teamName : `${e.teamName} · ${e.eventName}`)}</option>`;
+                })
+                .join('')}
+            </select>
+          </label>`
+              : ''
+          }
           <label>搭檔
             <select data-filter="partner">
               <option value="">全部搭檔</option>
@@ -49,7 +71,9 @@ export function renderReport(ds: Dataset, rep: PlayerReport, params: ReportParam
   el.querySelectorAll<HTMLSelectElement>('select[data-filter]').forEach((sel) =>
     sel.addEventListener('change', () => {
       const next = { ...params, [sel.dataset.filter!]: sel.value || undefined };
-      if (sel.dataset.filter === 'event') next.partner = undefined;
+      if (sel.dataset.filter !== 'partner') next.partner = undefined;
+      // 換到另一份賽事時，原本選的隊伍不屬於該賽事，要清掉
+      if (sel.dataset.filter === 'event' && sel.value && next.team && teamEvent(next.team) !== sel.value) next.team = undefined;
       location.hash = reportHref(params.name, next);
     }),
   );

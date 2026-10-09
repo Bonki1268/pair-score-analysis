@@ -1,5 +1,6 @@
 import './styles.css';
 import type { ParsedEvent } from './model/types';
+import { placeEvent } from './model/event-id';
 import { deleteEvent, loadEvents, saveEvent } from './model/store';
 import { buildIndex, type PlayerEntry } from './index/players';
 import { buildDataset, buildReport, type Dataset } from './engine/report';
@@ -15,6 +16,7 @@ const app = document.getElementById('app')!;
 const state = {
   events: [] as ParsedEvent[],
   errors: [] as string[],
+  notices: [] as string[],
   ds: buildDataset([]),
   index: new Map<string, PlayerEntry[]>(),
   loading: false,
@@ -30,15 +32,17 @@ function rebuild() {
 
 async function addFiles(files: File[]) {
   state.errors = [];
+  state.notices = [];
   state.loading = true;
   render();
   for (const f of files) {
     try {
       const data = new Uint8Array(await f.arrayBuffer());
       if (!isZip(data)) await loadCodepages();
-      const parsed = parseWorkbook(data, f.name);
-      state.events = state.events.filter((e) => e.event.eventId !== parsed.event.eventId).concat(parsed);
-      await saveEvent(parsed);
+      const placed = placeEvent(state.events, parseWorkbook(data, f.name));
+      state.events = state.events.filter((e) => e.event.eventId !== placed.replaces).concat(placed.event);
+      if (placed.note) state.notices.push(placed.note);
+      await saveEvent(placed.event);
     } catch (err) {
       state.errors.push(err instanceof ParseError ? err.message : `「${f.name}」解析失敗：${(err as Error).message}`);
       console.error(err);
@@ -59,7 +63,7 @@ async function removeEvent(eventId: string) {
 function renderHome() {
   app.replaceChildren(
     h(`<header class="site-head"><h1>輸在哪</h1><p class="muted">上傳隊制賽或雙人賽成績表，查看個人在叫牌、競叫、做莊、防守的得失分。</p></header>`),
-    renderUpload(state.events, state.errors, { onFiles: addFiles, onDelete: removeEvent }),
+    renderUpload(state.events, state.errors, { onFiles: addFiles, onDelete: removeEvent }, state.notices),
   );
   if (state.loading) app.append(h('<p class="muted center">解析中…</p>'));
   if (state.events.length > 0) {

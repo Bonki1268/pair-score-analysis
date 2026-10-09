@@ -7,7 +7,7 @@ export interface UploadHandlers {
   onDelete(eventId: string): void;
 }
 
-export function renderUpload(events: ParsedEvent[], errors: string[], handlers: UploadHandlers): HTMLElement {
+export function renderUpload(events: ParsedEvent[], errors: string[], handlers: UploadHandlers, notices: string[] = []): HTMLElement {
   const el = h(`
     <section class="card">
       <h2>1. 上傳成績表</h2>
@@ -18,6 +18,7 @@ export function renderUpload(events: ParsedEvent[], errors: string[], handlers: 
       </label>
       <p class="muted small">檔案只在你的瀏覽器裡解析與計算，不會上傳到任何伺服器。</p>
       ${errors.map((e) => `<p class="error" role="alert">${esc(e)}</p>`).join('')}
+      ${notices.map((n) => `<p class="notice" role="status">${esc(n)}</p>`).join('')}
       <ul class="events">${events.map(eventRow).join('')}</ul>
     </section>`);
   const input = el.querySelector('input')!;

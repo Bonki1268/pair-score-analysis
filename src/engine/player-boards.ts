@@ -17,13 +17,21 @@ export interface PlayerBoard {
 
 export interface PlayerFilter {
   eventIds?: string[];
-  /** `${eventId}#${teamNo}`；同名不同人時用來區分 */
+  /**
+   * `${eventId}#${teamNo}`；同名不同人時用來區分。
+   * 只限制清單裡出現的賽事，其他賽事的牌照常列入
+   */
   teams?: string[];
   partner?: string;
 }
 
 export function teamRef(eventId: string, teamNo: number): string {
   return `${eventId}#${teamNo}`;
+}
+
+/** teamRef 的賽事部分；賽事 ID 本身可能含有 # */
+export function teamEvent(ref: string): string {
+  return ref.slice(0, ref.lastIndexOf('#'));
 }
 
 export function toPlayerBoard(r: BoardResult, side: Side, name: string): PlayerBoard {
@@ -48,6 +56,7 @@ export function playerBoards(results: BoardResult[], name: string, filter: Playe
   const out: PlayerBoard[] = [];
   const events = filter.eventIds ? new Set(filter.eventIds) : null;
   const teams = filter.teams && filter.teams.length > 0 ? new Set(filter.teams) : null;
+  const teamEvents = new Set([...(teams ?? [])].map(teamEvent));
   for (const r of results) {
     if (events && !events.has(r.eventId)) continue;
     let side: Side | null = null;
@@ -55,7 +64,7 @@ export function playerBoards(results: BoardResult[], name: string, filter: Playe
     else if (r.ewPair.includes(name)) side = 'EW';
     if (!side) continue;
     const pb = toPlayerBoard(r, side, name);
-    if (teams && !teams.has(teamRef(r.eventId, pb.team))) continue;
+    if (teams && teamEvents.has(r.eventId) && !teams.has(teamRef(r.eventId, pb.team))) continue;
     if (filter.partner && pb.partner !== filter.partner) continue;
     out.push(pb);
   }

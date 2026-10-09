@@ -12,7 +12,8 @@ import type {
   Vulnerability,
 } from '../model/types';
 import { parseContract } from './contract';
-import { Grid, norm } from './grid';
+import { Grid } from './grid';
+import { norm } from './names';
 import { readDeals, standardDealer, standardVul } from './hands';
 import { splitPair } from './names';
 

@@ -1,5 +1,9 @@
 import type { Pair } from '../model/types';
-import { norm } from './grid';
+
+/** 去掉所有空白，用來比對標籤與人名 */
+export function norm(s: string): string {
+  return s.replace(/\s+/g, '');
+}
 
 /**
  * 把「王小明 陳大華」拆成兩個人名。

@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { norm } from './names';
 
 let codepages: Promise<void> | null = null;
 
@@ -80,10 +81,6 @@ export class Grid {
   ref(r: number, c: number): string {
     return XLSX.utils.encode_cell({ r, c });
   }
-}
-
-export function norm(s: string): string {
-  return s.replace(/\s+/g, '');
 }
 
 export function readWorkbook(data: ArrayBuffer | Uint8Array): XLSX.WorkBook {

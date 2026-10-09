@@ -4,7 +4,9 @@ import { readWorkbook } from './grid';
 import { parsePairsImp } from './pairs-imp';
 import { parseSwissImp } from './swiss-imp';
 
-export class ParseError extends Error {}
+import { ParseError } from './errors';
+
+export { ParseError };
 
 export type FormatId = 'swiss-imp' | 'pairs-imp';
 

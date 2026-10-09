@@ -2,7 +2,8 @@ import type { WorkBook } from 'xlsx';
 import type { BoardResult, Contract, Deal, Pair, ParsedEvent, ParseWarning, Scoring, Team } from '../model/types';
 import { butlerOf, computeDatum, crossImp } from '../engine/butler';
 import { parseContract } from './contract';
-import { Grid, norm } from './grid';
+import { Grid } from './grid';
+import { norm } from './names';
 import { readDeals, standardDealer, standardVul } from './hands';
 
 /** 從某一對的角度記錄的一副牌（個人成績T 的一列） */

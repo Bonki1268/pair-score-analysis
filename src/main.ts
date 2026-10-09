@@ -5,8 +5,7 @@ import { refreshEvents } from './model/reparse';
 import { deleteEvent, loadEvents, saveEvent } from './model/store';
 import { buildIndex, type PlayerEntry } from './index/players';
 import { buildDataset, buildReport, type Dataset } from './engine/report';
-import { parseWorkbook, ParseError } from './parsers/detect';
-import { isZip, loadCodepages } from './parsers/grid';
+import { ParseError } from './parsers/errors';
 import { esc, h } from './ui/format';
 import { renderReport, type ReportParams } from './ui/report';
 import { renderSearch } from './ui/search';
@@ -33,9 +32,10 @@ function rebuild() {
   state.index = buildIndex(events, state.ds.results);
 }
 
+/** 解析器與 xlsx 套件只在需要時才載入 */
 async function parseFile(data: Uint8Array, fileName: string): Promise<ParsedEvent> {
-  if (!isZip(data)) await loadCodepages();
-  return parseWorkbook(data, fileName);
+  const { parseFile } = await import('./parsers/load');
+  return parseFile(data, fileName);
 }
 
 async function addFiles(files: File[]) {

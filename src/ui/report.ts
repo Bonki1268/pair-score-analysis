@@ -6,7 +6,7 @@ import { teamEvent, teamRef } from '../engine/player-boards';
 import thresholds from '../config/thresholds.json';
 import { divergingBars } from './charts';
 import { dealDiagram } from './deal-diagram';
-import { contractHtml, esc, h, signClass, signed, suitHtml } from './format';
+import { contractHtml, esc, h, shortEventNames, signClass, signed, suitHtml } from './format';
 import { reportHref } from './search';
 
 export interface ReportParams {
@@ -81,7 +81,10 @@ export function renderReport(ds: Dataset, rep: PlayerReport, params: ReportParam
 }
 
 function body(ds: Dataset, rep: PlayerReport, params: ReportParams): string {
-  return [summary(rep), categories(rep), tricks(rep), partners(rep, params), seatsAndRounds(rep), review(ds, rep), method()].join('');
+  // 合併多份賽事時，輪次與復盤清單用簡稱標出賽事；只有一份時不標
+  const ids = [...new Set(rep.classified.map((c) => c.pb.result.eventId))];
+  const short = ids.length > 1 ? shortEventNames(ids.map((id) => [id, ds.eventNames.get(id) ?? id])) : new Map<string, string>();
+  return [summary(rep), categories(rep), tricks(rep), partners(rep, params), seatsAndRounds(rep, short), review(ds, rep, short), method()].join('');
 }
 
 function stat(label: string, value: string, cls = '', sub = ''): string {
@@ -169,9 +172,8 @@ function partners(rep: PlayerReport, params: ReportParams): string {
   </section>`;
 }
 
-function seatsAndRounds(rep: PlayerReport): string {
-  const multiEvent = new Set(rep.rounds.map((r) => r.eventId)).size > 1;
-  const bars = rep.rounds.map((r) => ({ label: `${multiEvent ? r.eventName.split(/\s+/).pop() + ' ' : ''}R${r.round}`, value: r.imp, note: r.opponent }));
+function seatsAndRounds(rep: PlayerReport, short: Map<string, string>): string {
+  const bars = rep.rounds.map((r) => ({ label: `${short.has(r.eventId) ? short.get(r.eventId) + ' ' : ''}R${r.round}`, value: r.imp, note: r.opponent }));
   return `<section class="card">
     <h2>座位與輪次</h2>
     <table class="table">
@@ -186,22 +188,22 @@ function seatsAndRounds(rep: PlayerReport): string {
   </section>`;
 }
 
-function review(ds: Dataset, rep: PlayerReport): string {
+function review(ds: Dataset, rep: PlayerReport, short: Map<string, string>): string {
   return `<section class="card">
     <h2>復盤清單</h2>
     <p class="muted small">成績表沒有叫牌過程與首攻，系統只能指出失分落在哪一類；請對照牌型與全場結果復盤。</p>
     <h3>失分最大的 ${rep.review.worst.length} 副</h3>
-    ${rep.review.worst.map((r) => reviewRow(ds, r)).join('')}
+    ${rep.review.worst.map((r) => reviewRow(ds, r, short)).join('')}
     <h3>得分最大的 ${rep.review.best.length} 副</h3>
-    ${rep.review.best.map((r) => reviewRow(ds, r)).join('')}
+    ${rep.review.best.map((r) => reviewRow(ds, r, short)).join('')}
   </section>`;
 }
 
-function reviewRow(ds: Dataset, r: ReviewItem): string {
+function reviewRow(ds: Dataset, r: ReviewItem, short: Map<string, string>): string {
   const pb = r.item.pb;
   const res = pb.result;
   const mySeats: Seat[] = pb.side === 'NS' ? ['N', 'S'] : ['E', 'W'];
-  const eventShort = (ds.eventNames.get(res.eventId) ?? '').split(/\s+/).pop();
+  const eventShort = short.has(res.eventId) ? `${short.get(res.eventId)} ` : '';
   const isTeams = ds.eventInfo.get(res.eventId)?.kind !== 'pairs';
   const where = isTeams ? `${res.room === 'open' ? '公開室' : '閉室'}，` : '';
 
@@ -217,7 +219,7 @@ function reviewRow(ds: Dataset, r: ReviewItem): string {
   const myScore = (s: number) => (pb.side === 'NS' ? s : -s);
   return `<details class="review">
     <summary>
-      <span class="review-board">${esc(eventShort)} R${res.round} 第 ${res.board} 副</span>
+      <span class="review-board">${esc(eventShort)}R${res.round} 第 ${res.board} 副</span>
       <span class="review-contract">${contractHtml(res.contract)}</span>
       <span class="review-cat">${r.item.category === 'no-consensus' ? '<span class="tag tag-neutral">無共識</span> ' : ''}${esc(categoryLabel(r.item.category))}${r.item.overbid ? ' · 叫過頭' : ''}</span>
       <span class="review-imp ${signClass(pb.butler)}">${signed(pb.butler)}</span>

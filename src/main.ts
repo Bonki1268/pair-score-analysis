@@ -1,6 +1,7 @@
 import './styles.css';
 import type { ParsedEvent } from './model/types';
 import { placeEvent } from './model/event-id';
+import { refreshEvents } from './model/reparse';
 import { deleteEvent, loadEvents, saveEvent } from './model/store';
 import { buildIndex, type PlayerEntry } from './index/players';
 import { buildDataset, buildReport, type Dataset } from './engine/report';
@@ -17,6 +18,8 @@ const state = {
   events: [] as ParsedEvent[],
   errors: [] as string[],
   notices: [] as string[],
+  /** 解析器已更新、但無法重新解析的賽事，需要使用者重新上傳 */
+  stale: new Set<string>(),
   ds: buildDataset([]),
   index: new Map<string, PlayerEntry[]>(),
   loading: false,
@@ -30,6 +33,11 @@ function rebuild() {
   state.index = buildIndex(events, state.ds.results);
 }
 
+async function parseFile(data: Uint8Array, fileName: string): Promise<ParsedEvent> {
+  if (!isZip(data)) await loadCodepages();
+  return parseWorkbook(data, fileName);
+}
+
 async function addFiles(files: File[]) {
   state.errors = [];
   state.notices = [];
@@ -38,11 +46,11 @@ async function addFiles(files: File[]) {
   for (const f of files) {
     try {
       const data = new Uint8Array(await f.arrayBuffer());
-      if (!isZip(data)) await loadCodepages();
-      const placed = placeEvent(state.events, parseWorkbook(data, f.name));
+      const placed = placeEvent(state.events, await parseFile(data, f.name));
       state.events = state.events.filter((e) => e.event.eventId !== placed.replaces).concat(placed.event);
+      state.stale.delete(placed.event.event.eventId);
       if (placed.note) state.notices.push(placed.note);
-      await saveEvent(placed.event);
+      await saveEvent({ parsed: placed.event, data, parserVersion: __PARSER_VERSION__ });
     } catch (err) {
       state.errors.push(err instanceof ParseError ? err.message : `「${f.name}」解析失敗：${(err as Error).message}`);
       console.error(err);
@@ -55,15 +63,19 @@ async function addFiles(files: File[]) {
 
 async function removeEvent(eventId: string) {
   state.events = state.events.filter((e) => e.event.eventId !== eventId);
+  state.stale.delete(eventId);
   await deleteEvent(eventId);
   rebuild();
   render();
 }
 
 function renderHome() {
+  const staleNotes = state.events
+    .filter((e) => state.stale.has(e.event.eventId))
+    .map((e) => `「${e.event.name}」是用舊版程式解析的，沒有保存原始檔可以自動更新。請重新上傳「${e.event.fileName}」，以套用最新的解析規則。`);
   app.replaceChildren(
     h(`<header class="site-head"><h1>輸在哪</h1><p class="muted">上傳隊制賽或雙人賽成績表，查看個人在叫牌、競叫、做莊、防守的得失分。</p></header>`),
-    renderUpload(state.events, state.errors, { onFiles: addFiles, onDelete: removeEvent }, state.notices),
+    renderUpload(state.events, state.errors, { onFiles: addFiles, onDelete: removeEvent }, [...state.notices, ...staleNotes]),
   );
   if (state.loading) app.append(h('<p class="muted center">解析中…</p>'));
   if (state.events.length > 0) {
@@ -114,7 +126,11 @@ function render() {
 async function init() {
   app.innerHTML = '<p class="muted center">載入中…</p>';
   try {
-    state.events = await loadEvents();
+    // 解析器更新過的話，用保存的原始檔重新解析
+    const { events, updated, stale } = await refreshEvents(await loadEvents(), __PARSER_VERSION__, parseFile);
+    for (const e of updated) await saveEvent(e);
+    state.events = events.map((e) => e.parsed);
+    state.stale = new Set(stale);
     // 早期版本存下的賽事沒有類型欄位，當時只支援隊制賽
     for (const e of state.events) {
       e.event.kind ??= 'teams';

@@ -75,7 +75,7 @@ export function parsePairsImp(wb: WorkBook, fileName: string): ParsedEvent {
   }
   rows.sort((a, b) => a.board - b.board || a.ns - b.ns);
 
-  // Datum：成績表有「牌局分析」的 Mean 就採用，否則以全場平均自算
+  // Datum：成績表有「牌局分析」的 Mean 就採用，否則用和 Mean 相同的算法（去掉最高與最低分後平均）自算
   const byBoard = new Map<number, Table[]>();
   for (const r of rows) {
     const arr = byBoard.get(r.board) ?? [];
@@ -86,7 +86,7 @@ export function parsePairsImp(wb: WorkBook, fileName: string): ParsedEvent {
   const datumOf = new Map<number, number>();
   for (const [board, rs] of byBoard) {
     const scores = rs.filter((r) => !r.contract.adjusted && r.nsScore !== null).map((r) => r.nsScore!);
-    datumOf.set(board, datumSource === 'sheet' ? means.get(board)! : computeDatum(scores));
+    datumOf.set(board, datumSource === 'sheet' ? means.get(board)! : computeDatum(scores, 'trimmed'));
   }
 
   const scoring = detectScoring(rows, datumOf);

@@ -39,6 +39,23 @@ describe('解析器更新後重新解析已存的賽事', () => {
     expect(p.parsed.results[0]).toMatchObject({ eventId: '週三賽（1007）', matchId: '週三賽（1007）|R1|1v2', nsScore: 450 });
   });
 
+  test('每開始重新解析一份就回報進度，不需要重新解析的不算在內', async () => {
+    const calls: [number, number, string][] = [];
+    const list: StoredEvent[] = [
+      { parsed: ev('甲', '甲', 420), data: bytes, parserVersion: 'v2' },
+      { parsed: ev('乙', '乙', 420), data: bytes, parserVersion: 'v1' },
+      { parsed: ev('丙', '丙', 420), data: null, parserVersion: null },
+      { parsed: ev('丁', '丁', 420), data: bytes, parserVersion: 'v1' },
+    ];
+    await refreshEvents(list, 'v2', parse, (done, total, name) => {
+      calls.push([done, total, name]);
+    });
+    expect(calls).toEqual([
+      [0, 2, '乙'],
+      [1, 2, '丁'],
+    ]);
+  });
+
   test('早期版本沒有原始檔 → 保留舊結果並列為需要重新上傳', async () => {
     const s: StoredEvent = { parsed: ev('週三賽', '週三賽', 420), data: null, parserVersion: null };
     const r = await refreshEvents([s], 'v2', parse);

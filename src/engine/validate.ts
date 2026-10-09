@@ -183,7 +183,7 @@ function sheetImpCheck(p: ParsedEvent): Check {
 function pairsDatumCheck(p: ParsedEvent): Check {
   const label = '自算 Datum 與成績表';
   if (p.datumSource !== 'sheet') {
-    return { id: 'datum', label, status: 'skip', detail: '成績表沒有提供 Datum，系統以全場平均自算' };
+    return { id: 'datum', label, status: 'skip', detail: '成績表沒有提供 Datum，系統以去掉最高與最低分後的平均自算' };
   }
   // 雙人賽「牌局分析」的 Mean 是去掉最高與最低分後的平均
   const groups = [...groupByBoard(p.results).values()];

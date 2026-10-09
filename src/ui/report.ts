@@ -248,7 +248,7 @@ function method(): string {
     <details>
       <summary><h2 class="inline">方法說明</h2></summary>
       <div class="method small">
-        <p><strong>Butler</strong>：每副牌的全場平均分（Datum）由成績表提供；你的得分與 Datum 的差距換成 IMP。</p>
+        <p><strong>Butler</strong>：每副牌的全場平均分（Datum）由成績表提供，雙人賽成績表沒有提供時，以去掉最高與最低分後的平均自算；你的得分與 Datum 的差距換成 IMP。</p>
         <p><strong>主流合約</strong>：同一副牌最多桌次打的「主打方 + 階數 + 花色」；四家 Pass 也算一種合約。</p>
         <p><strong>平手</strong>：最多桌次的合約有兩個以上時，代表全場沒有共識。若選不同的候選會讓這副牌歸入不同類別，就歸入「全場無共識」，不計入任何技術類別；每個候選都得到同一類別時照常歸類。自己和主流都是 Pass 的牌歸入「Pass 局」。</p>
         <p><strong>輸贏分類</strong>，依序判斷：</p>

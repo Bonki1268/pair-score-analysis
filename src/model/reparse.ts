@@ -18,10 +18,14 @@ export async function refreshEvents(
   stored: StoredEvent[],
   version: string,
   parse: (data: Uint8Array, fileName: string) => Promise<ParsedEvent>,
+  /** 每開始重新解析一份之前呼叫，用來顯示進度 */
+  onProgress?: (done: number, total: number, name: string) => void | Promise<void>,
 ): Promise<RefreshResult> {
   const events: StoredEvent[] = [];
   const updated: StoredEvent[] = [];
   const stale: string[] = [];
+  const total = stored.filter((s) => s.parserVersion !== version && s.data).length;
+  let done = 0;
   for (const s of stored) {
     if (s.parserVersion === version) {
       events.push(s);
@@ -33,6 +37,7 @@ export async function refreshEvents(
       stale.push(old.eventId);
       continue;
     }
+    await onProgress?.(done++, total, old.name);
     try {
       const fresh = renameEvent(await parse(s.data, old.fileName), old.eventId, old.name);
       const next: StoredEvent = { parsed: { ...fresh, event: { ...fresh.event, importedAt: old.importedAt } }, data: s.data, parserVersion: version };

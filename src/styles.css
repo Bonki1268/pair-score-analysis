@@ -77,6 +77,7 @@ code { background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
 .center { text-align: center; }
+.center progress { width: 100%; max-width: 320px; }
 .pos { color: var(--pos); }
 .neg { color: var(--neg); }
 .suit-red { color: var(--suit-red); }

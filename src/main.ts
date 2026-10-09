@@ -126,11 +126,24 @@ function render() {
   }
 }
 
+/** 解析是同步的大量運算，先讓瀏覽器把進度畫出來再開始解析下一份 */
+async function showReparseProgress(done: number, total: number, name: string) {
+  app.replaceChildren(
+    h(`<section class="card center">
+      <p>程式已更新，正在用保存的原始檔重新解析成績表（${done + 1}/${total}）</p>
+      <p class="muted small">${esc(name)}</p>
+      <progress max="${total}" value="${done}"></progress>
+      <p class="muted small">大的成績表可能要幾秒鐘，只有程式更新後第一次開啟需要等待。</p>
+    </section>`),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 async function init() {
   app.innerHTML = '<p class="muted center">載入中…</p>';
   try {
     // 解析器更新過的話，用保存的原始檔重新解析
-    const { events, updated, stale } = await refreshEvents(await loadEvents(), __PARSER_VERSION__, parseFile);
+    const { events, updated, stale } = await refreshEvents(await loadEvents(), __PARSER_VERSION__, parseFile, showReparseProgress);
     state.noStorage = !(await storageAvailable());
     for (const e of updated) await saveEvent(e);
     state.events = events.map((e) => e.parsed);

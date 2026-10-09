@@ -1,5 +1,6 @@
 import { search, type Candidate, type PlayerEntry } from '../index/players';
 import { esc, h } from './format';
+import type { ReportParams } from './report';
 
 export function reportHref(name: string, opts: { team?: string; event?: string; partner?: string } = {}): string {
   const q = new URLSearchParams();
@@ -8,6 +9,28 @@ export function reportHref(name: string, opts: { team?: string; event?: string; 
   if (opts.partner) q.set('partner', opts.partner);
   const qs = q.toString();
   return `#/p/${encodeURIComponent(name)}${qs ? `?${qs}` : ''}`;
+}
+
+/** 網址被截斷時 % 編碼可能不完整，解碼失敗就照原樣使用，頁面顯示「找不到賽員」而不是整頁空白 */
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
+/** reportHref 的反向：從網址的 hash 讀出報告參數；不是報告頁時回傳 null */
+export function parseRoute(hash: string): ReportParams | null {
+  const m = /^#\/p\/([^?]+)(?:\?(.*))?$/.exec(hash);
+  if (!m) return null;
+  const q = new URLSearchParams(m[2] ?? '');
+  return {
+    name: safeDecode(m[1]),
+    event: q.get('e') ?? undefined,
+    team: q.get('t') ?? undefined,
+    partner: q.get('partner') ?? undefined,
+  };
 }
 
 export function renderSearch(index: Map<string, PlayerEntry[]>, initial = ''): HTMLElement {

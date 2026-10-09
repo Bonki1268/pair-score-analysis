@@ -36,13 +36,23 @@ function open(): Promise<IDBDatabase | null> {
   return dbPromise;
 }
 
+/**
+ * 等交易完成（oncomplete）才算成功：空間不足（QuotaExceededError）常常是請求本身成功、
+ * 交易提交時才中止，只看請求的 onsuccess 會誤以為已經存好
+ */
 function tx<T>(db: IDBDatabase, store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     const t = db.transaction(store, mode);
     const req = fn(t.objectStore(store));
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    t.oncomplete = () => resolve(req.result);
+    t.onabort = () => reject(t.error ?? req.error);
+    t.onerror = () => reject(t.error ?? req.error);
   });
+}
+
+/** 瀏覽器能不能保存賽事（無痕模式或封鎖網站資料時不行） */
+export async function storageAvailable(): Promise<boolean> {
+  return (await open()) !== null;
 }
 
 /** 早期版本直接存 ParsedEvent，沒有原始檔與版本 */
@@ -60,15 +70,18 @@ export async function loadEvents(): Promise<StoredEvent[]> {
   }
 }
 
-export async function saveEvent(e: StoredEvent): Promise<void> {
+/** 存進瀏覽器；回傳 false 表示只留在記憶體，重新整理後就不見了 */
+export async function saveEvent(e: StoredEvent): Promise<boolean> {
   const id = e.parsed.event.eventId;
   memory.events.set(id, e);
   const db = await open();
-  if (!db) return;
+  if (!db) return false;
   try {
     await tx(db, EVENTS, 'readwrite', (s) => s.put(e, id));
-  } catch {
-    /* 退回記憶體 */
+    return true;
+  } catch (err) {
+    console.error(err);
+    return false;
   }
 }
 

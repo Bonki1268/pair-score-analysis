@@ -17,7 +17,7 @@ export interface InsightInput {
   declare: TrickStat;
   defend: TrickStat;
   overbidCount: number;
-  /** 我方主打的副數，叫過頭比例的分母 */
+  /** 我方主打的副數，超叫比例的分母 */
   declared: number;
 }
 
@@ -45,11 +45,11 @@ export function generateInsights(input: InsightInput, t: Thresholds = defaults):
   if (input.defend.count >= t.trickDiffMinBoards && input.defend.mean <= t.trickDiffWeak) {
     out.push({ kind: 'defend-weak', text: '防守可能比場上弱', evidence: `比較 ${input.defend.count} 副，平均 ${fmt(input.defend.mean, 2)} 墩` });
   }
-  // 只有我方主打的牌才可能叫過頭，比例以主打副數為分母
+  // 只有我方主打的牌才可能超叫，比例以主打副數為分母
   if (input.declared >= t.overbidMinDeclared && input.overbidCount / input.declared >= t.overbidRate) {
     out.push({
       kind: 'overbid',
-      text: '常叫過頭，宕多墩',
+      text: '常超叫，宕多墩',
       evidence: `主打 ${input.declared} 副中宕 ${t.overbidDownTricks} 墩以上 ${input.overbidCount} 次，占 ${((input.overbidCount / input.declared) * 100).toFixed(0)}%`,
     });
   }
@@ -68,7 +68,7 @@ function headline(insights: Insight[], input: InsightInput, t: Thresholds): stri
   if (weak) parts.push(weak.text);
   if (insights.some((i) => i.kind === 'declare-weak')) parts.push('做莊可能比場上弱');
   if (insights.some((i) => i.kind === 'defend-weak')) parts.push('防守可能比場上弱');
-  if (insights.some((i) => i.kind === 'overbid')) parts.push('常叫過頭');
+  if (insights.some((i) => i.kind === 'overbid')) parts.push('常超叫');
   if (parts.length === 0) return '各面向沒有明顯的強弱項';
   return parts.join('，');
 }

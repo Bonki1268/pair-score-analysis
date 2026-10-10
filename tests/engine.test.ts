@@ -83,7 +83,7 @@ describe('輸贏分類', () => {
   test('同層級不同花色 → 選擇王牌', () => expect(classify('3NN4').category).toBe('strain'));
   test('同花色同層級不同階 → 叫牌高度', () => expect(classify('5HS-1').category).toBe('level'));
   test('調整分另計', () => expect(classify('A').category).toBe('adjusted'));
-  test('主打宕 2 墩以上標記叫過頭', () => {
+  test('主打宕 2 墩以上標記超叫', () => {
     expect(classify('4HS-2').overbid).toBe(true);
     expect(classify('4HS-1').overbid).toBe(false);
     expect(classify('4HN-3', 'EW').overbid).toBe(false);
@@ -116,7 +116,7 @@ describe('結論規則', () => {
     expect(run({ defend: trick(8, -0.31) }).insights.map((i) => i.kind)).toEqual(['defend-weak']);
     expect(run({ defend: trick(8, -0.29) }).insights).toEqual([]);
   });
-  test('叫過頭：主打 ≥ 8 副，其中宕 2 墩以上 ≥ 20%', () => {
+  test('超叫：主打 ≥ 8 副，其中宕 2 墩以上 ≥ 20%', () => {
     expect(run({ boards: 50, declared: 20, overbidCount: 4 }).insights.map((i) => i.kind)).toEqual(['overbid']);
     expect(run({ boards: 50, declared: 20, overbidCount: 3 }).insights).toEqual([]);
     // 分母是主打副數，不是總牌數：總牌數多但主打少時照樣觸發

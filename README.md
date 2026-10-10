@@ -151,10 +151,10 @@ Butler 總分 = Σ 我的 Butler
   - 得到兩種以上類別 → `全場無共識`，復盤清單會列出所有平手候選與桌數
 - **lowest**（舊行為）：只和鍵值字典序最小的候選比較。Pass 局會依角色歸入做莊或防守。
 
-### 3.6 叫過頭標記
+### 3.6 超叫標記
 
 ```
-叫過頭 = 我方主打 且 宕墩數 ≥ overbidDownTricks（2）
+超叫 = 我方主打 且 宕墩數 ≥ overbidDownTricks（2）
 ```
 
 這是額外標記，可以和任何類別同時成立，調整分除外。
@@ -206,7 +206,7 @@ Butler 總分 = Σ 我的 Butler
 | 〈類別〉是得分來源 | 同上類別與牌數，且每牌 ≥ `strongCategoryImpPerBoard`（+1.0） |
 | 做莊可能比場上弱 | 做莊比較副數 ≥ `trickDiffMinBoards`（8），且平均墩差 ≤ `trickDiffWeak`（−0.3） |
 | 防守可能比場上弱 | 防守比較副數 ≥ 8，且平均墩差 ≤ −0.3 |
-| 常叫過頭，宕多墩 | 主打副數 ≥ `overbidMinDeclared`（8），且叫過頭次數 / 主打副數 ≥ `overbidRate`（20%） |
+| 常超叫，宕多墩 | 主打副數 ≥ `overbidMinDeclared`（8），且超叫次數 / 主打副數 ≥ `overbidRate`（20%） |
 | 做莊穩定（只出現在標題） | 做莊比較副數 ≥ 8，且平均墩差 > −0.3 |
 
 - 總牌數 < `minSampleBoards`（20）時，標題後加註「樣本不足，僅供參考」。
